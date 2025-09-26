@@ -1,0 +1,251 @@
+﻿body {
+    font-family: 'Times New Roman', serif;
+    font-size: 14px;
+    line-height: 1.2 !important;
+    padding: 0; /* Bỏ padding 20px */
+    color: black; /* Đổi thành màu đen */
+    /* background: #f0f0f0; /* Thêm nền xám để dễ nhìn */ */
+}
+
+.container {
+    width: 210mm;
+    margin: 0 auto;
+    background: white;
+    color: black; /* Đổi màu chữ thành đen để dễ đọc */
+    padding: 3mm;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    box-sizing: border-box;
+}
+
+.header {
+    text-align: center;
+    display: flex;
+    justify-content: space-around;
+}
+
+.company-name {
+    font-weight: bold;
+    font-size: 16px;
+    margin-bottom: 5px;
+}
+
+.document-title {
+    font-weight: bold;
+    font-size: 18px;
+    text-transform: uppercase;
+}
+
+.sub-title {
+    font-style: italic;
+    font-size: 12px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 15px;
+}
+
+th, td {
+    border: 1px solid #000;
+    padding: 4px !important;
+    vertical-align: top;
+}
+
+th {
+    text-align: center;
+    font-weight: bold;
+}
+
+.section {
+    margin: 8px auto;
+}
+
+.section-title {
+    font-weight: bold;
+    font-size: 16px;
+    margin-bottom: 10px;
+}
+
+.subsection-title {
+    font-weight: bold;
+    margin: 10px 0 5px 0;
+}
+/* ===== FORM KHÁM SỨC KHỎE ===== */
+.form-field {
+    display: flex;
+    align-items: flex-end;
+    margin-bottom: 4px;
+}
+
+    .form-field span.label {
+        white-space: nowrap; /* chữ không bị xuống dòng */
+    }
+
+
+.input-line.small {
+    flex: unset;
+    width: 50px;
+}
+
+.input-line.medium {
+    flex: unset;
+    width: 120px;
+}
+
+
+
+/* Nhóm checkbox giới tính */
+.checkbox-group {
+    display: inline-flex;
+    align-items: center;
+    margin-right: 20px;
+    font-weight: normal;
+}
+
+    .checkbox-group input {
+        margin-left: 5px;
+    }
+
+/* Khung ảnh 4x6 */
+.photo-box {
+    border: 1px solid #000;
+    width: 3.5cm;
+    height: 4.5cm;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0 auto 5px auto;
+}
+
+.photo-text {
+    font-size: 12px;
+    color: #666;
+    text-align: center;
+}
+
+.input-multiline {
+    width: 100%;
+    border: none;
+    border-bottom: 1px dotted #000;
+    outline: none;
+    background: transparent;
+    font-family: 'Times New Roman', serif;
+    font-size: 14px;
+    line-height: 20px;
+    height: 40px; /* đúng 2 dòng */
+    resize: none; /* không cho kéo */
+    overflow: hidden; /* không hiện thanh cuộn */
+}
+
+.input-line {
+    border: none;
+    outline: none;
+    background: transparent;
+    flex: 1; /* giãn ngang */
+    margin-left: 4px;
+    font-family: 'Times New Roman', serif;
+    font-size: 14px;
+    line-height: 20px;
+    height: 20px; /* đồng bộ với editable-div */
+    padding: 0;
+    /* Dấu chấm giống editable-div */
+    background-image: repeating-linear-gradient( to right, #000 0%, #000 2px, transparent 2px, transparent 4px );
+    background-repeat: repeat-x;
+    background-size: 4px 1px;
+    background-position: 0 19px; /* dòng 1 */
+}
+
+
+.signature-area {
+    text-align: right;
+    margin-top: 30px;
+}
+
+.page-break {
+    page-break-after: always;
+}
+
+.underline {
+    display: inline-block;
+    min-width: 200px;
+    border-bottom: 1px solid #000;
+    margin: 0 5px;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.text-right {
+    text-align: right;
+}
+
+.bordered-box {
+    border: 1px solid #000;
+    padding: 15px;
+    margin: 10px 0;
+}
+
+.outer-box {
+    border: 6px solid black; /* Khung ngoài */
+    padding: 3px;
+    margin: 20px auto;
+    height: 297mm;
+}
+
+.inner-box {
+    border: 2px solid black; /* Khung giữa */
+    padding: 8px;
+}
+
+.outer-box-2 {
+/*    border: 1px solid black;*/
+    padding: 3px;
+    margin: 20px auto;
+    height: 297mm;
+}
+
+.inner-box-2 {
+    padding: 8px;
+}
+
+.editable-div {
+    border: none;
+    outline: none;
+    background: transparent;
+    font-family: 'Times New Roman', serif;
+    font-size: 14px;
+    resize: none;
+    width: 100%;
+    line-height: 20px;
+    min-height: 40px;
+    padding: 0;
+    /* Dấu chấm cho toàn bộ div */
+    background-image: repeating-linear-gradient(to right, #000 0%, #000 2px, transparent 2px, transparent 4px), repeating-linear-gradient(to right, #000 0%, #000 2px, transparent 2px, transparent 4px);
+    background-repeat: repeat-x, repeat-x;
+    background-size: 4px 1px, 4px 1px;
+    background-position: 0 19px, /* Dòng 1 */
+    0 39px; /* Dòng 2 */
+
+
+}
+
+.fixed-label {
+    color: black;
+    background: white;
+    display: inline;
+    padding-right: 2px;
+}
+
+/* Ẩn dấu chấm ở phần label */
+.editable-div::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 165px; 
+    height: 40px;
+    background: white;
+    z-index: 1;
+}

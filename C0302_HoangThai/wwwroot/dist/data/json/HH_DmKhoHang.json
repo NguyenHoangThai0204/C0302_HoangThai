@@ -1,0 +1,144 @@
+[
+  {
+    "id": -1,
+    "ma": "tatca",
+    "ten": "Tất cả",
+    "viettat": "TA"
+  },
+  {
+    "id": 13,
+    "ma": "KHOTHUOCCS1",
+    "ten": "Kho nhà thuốc CS1",
+    "idchinhanh": 1,
+    "viettat": "KNTC",
+    "active": true
+  },
+  {
+    "id": 14,
+    "ma": "KHOTHUOCCS2",
+    "ten": "Kho nhà thuốc số 3",
+    "idchinhanh": 2,
+    "viettat": "KNTS3",
+    "active": true
+  },
+  {
+    "id": 36,
+    "ma": "KHOSD",
+    "ten": "Kho nhận sử dụng",
+    "idchinhanh": null,
+    "viettat": "KNSD",
+    "active": null
+  },
+  {
+    "id": 29,
+    "ma": "KHONSCS1",
+    "ten": "Kho nội soi CS1",
+    "idchinhanh": 1,
+    "viettat": "KNSC",
+    "active": true
+  },
+  {
+    "id": 30,
+    "ma": "KHONSCS2",
+    "ten": "Kho nội soi CS2",
+    "idchinhanh": 2,
+    "viettat": "KNSC",
+    "active": true
+  },
+  {
+    "id": 20,
+    "ma": "KHOSACS1",
+    "ten": "Kho siêu âm CS1",
+    "idchinhanh": 1,
+    "viettat": "KSAC",
+    "active": true
+  },
+  {
+    "id": 21,
+    "ma": "KHOSACS2",
+    "ten": "Kho siêu âm CS2",
+    "idchinhanh": 2,
+    "viettat": "KSAC",
+    "active": true
+  },
+  {
+    "id": 1,
+    "ma": "KHOTONGCS1",
+    "ten": "Kho Tổng CS1",
+    "idchinhanh": 1,
+    "viettat": "KTC",
+    "active": true
+  },
+  {
+    "id": 12,
+    "ma": "KHOTONGCS2",
+    "ten": "Kho Tổng CS2",
+    "idchinhanh": 2,
+    "viettat": "KTC",
+    "active": true
+  },
+  {
+    "id": 23,
+    "ma": "KHOKBCS1",
+    "ten": "Kho VT khám chuyên gia CS1",
+    "idchinhanh": 1,
+    "viettat": "KVKCGC",
+    "active": true
+  },
+  {
+    "id": 24,
+    "ma": "KHOKBCS2",
+    "ten": "Kho VT khám chuyên gia CS2",
+    "idchinhanh": 2,
+    "viettat": "KVKCGC",
+    "active": true
+  },
+  {
+    "id": 15,
+    "ma": "KHOVATTUCS1",
+    "ten": "Kho VTYT CS1",
+    "idchinhanh": 1,
+    "viettat": "KVC",
+    "active": true
+  },
+  {
+    "id": 16,
+    "ma": "KHOVATTUCS2",
+    "ten": "Kho VTYT CS2",
+    "idchinhanh": 2,
+    "viettat": "KVC",
+    "active": true
+  },
+  {
+    "id": 9,
+    "ma": "KHOXQCS1",
+    "ten": "Kho X quang CS1",
+    "idchinhanh": 1,
+    "viettat": "KXQC",
+    "active": true
+  },
+  {
+    "id": 17,
+    "ma": "KHOXQCS2",
+    "ten": "Kho X quang CS2",
+    "idchinhanh": 2,
+    "viettat": "KXQC",
+    "active": true
+  },
+  {
+    "id": 8,
+    "ma": "KHOXNCS1",
+    "ten": "Kho xét nghiệm CS1",
+    "idchinhanh": 1,
+    "viettat": "KXNC",
+    "active": true
+  },
+  {
+    "id": 22,
+    "ma": "KHOXNCS2",
+    "ten": "Kho xét nghiệm CS2",
+    "idchinhanh": 2,
+    "viettat": "KXNC",
+    "active": true
+  }
+]

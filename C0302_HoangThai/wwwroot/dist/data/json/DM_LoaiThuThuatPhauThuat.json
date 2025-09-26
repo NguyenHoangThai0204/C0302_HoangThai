@@ -1,0 +1,30 @@
+[
+  {
+    "id": 1,
+    "ma": "DB",
+    "ten": "Đặc biệt",
+    "viettat": "DB",
+    "active": true
+  },
+  {
+    "id": 2,
+    "ma": "I",
+    "ten": "Loại I",
+    "viettat": "LI",
+    "active": true
+  },
+  {
+    "id": 3,
+    "ma": "II",
+    "ten": "Loại II",
+    "viettat": "LI",
+    "active": true
+  },
+  {
+    "id": 4,
+    "ma": "III",
+    "ten": "Loại III",
+    "viettat": "LI",
+    "active": true
+  }
+]

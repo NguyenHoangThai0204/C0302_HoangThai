@@ -1,0 +1,167 @@
+﻿@import url('https://fonts.googleapis.com/css2?family=Baloo+Bhai+2:wght@400..800&family=Coiny&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Modak&display=swap');
+
+@media (min-width: 768px) {
+    .theme-style .navbar-expand-md .nav-item.active {
+        border-radius: 3px;
+        background-color: var(--tblr-teal-darken);
+    }
+}
+/*.theme-style #titleCN {
+    background-image: url('/dist/theme/s2.png');
+}*/
+.theme-style #titleCN .panel-center {
+    display: inline-block;
+    height: 40px;
+    width: 40px;
+    background-image: url('/dist/theme/panel-center.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    pointer-events: none;
+}
+
+.theme-style #titleCN .panel-fill {
+    flex: 1 0 0%;
+    display: inline-block;
+    height: 40px;
+    width: 40px;
+    background-image: url('/dist/theme/panel-fill.png');
+    background-size: contain;
+    pointer-events: none;
+}
+
+.theme-style #titleCN .panel-start {
+    content: '';
+    display: inline-block;
+    height: 40px;
+    width: 60px;
+    background-image: url('/dist/theme/panel2.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    pointer-events: none;
+}
+
+.theme-style #titleCN .panel-end {
+    content: '';
+    display: inline-block;
+    height: 40px;
+    width: 60px;
+    background-image: url('/dist/theme/panel3.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    pointer-events: none;
+    transform: scaleX(-1);
+}
+
+.theme-style #titleCN {
+    position: relative;
+    font-family: "Baloo Bhai 2", serif;
+    font-weight: 400;
+    font-style: normal;
+    text-transform: uppercase;
+}
+
+.theme-style #titleCN .center-text {
+    text-align: center;
+    width: 100%;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1;
+    font-weight: bold;
+    color: var(--tblr-white);
+}
+
+.theme-style .navbar {
+    position: relative;
+    background-color: var(--tblr-teal);
+}
+.theme-style .navbar .background {
+    background-image: url('/dist/theme/vien.png');
+    background-size: contain;
+    content: "";
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0.5;
+    z-index: -1;
+}
+
+.theme-style .navbar::before {
+    position: absolute;
+    top: 0;
+    content: '';
+    display: inline-block;
+    height: 40px;
+    width: 82px;
+    background-image: url('/dist/theme/viengoc.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    pointer-events: none;
+    transform: scaleX(-1);
+    z-index: -1;
+}
+.theme-style .navbar::after {
+    position: absolute;
+    top: 0;
+    right: 0;
+    content: '';
+    display: inline-block;
+    height: 40px;
+    width: 82px;
+    background-image: url('/dist/theme/viengoc.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    pointer-events: none;
+    z-index: -1;
+}
+
+.theme-style .phanLoaiMenu {
+    color: var(--tblr-danger) !important;
+}
+
+.theme-style .navbar .dropdown-item.active, .theme-style .dropdown-item:active {
+    background-color: var(--tblr-warning-lt);
+    color: var(--tblr-danger) !important;
+}
+
+.theme-style .navbar .dropdown-item svg {
+    color: var(--tblr-teal) !important;
+}
+
+.theme-style .card-header-tabs .nav-link.active {
+    border: 2px solid var(--tblr-red);
+    position: relative;
+}
+
+.theme-style .card-header-tabs .nav-link.active::before {
+    position: absolute;
+    left: 0;
+    content: '';
+    display: inline-block;
+    height: 30px;
+    width: 50px;
+    background-image: url('/dist/theme/vien.webp');
+    background-size: contain;
+    background-repeat: no-repeat;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.theme-style .card-header-tabs .nav-link.active::after {
+    position: absolute;
+    right: 0;
+    content: '';
+    display: inline-block;
+    height: 30px;
+    width: 50px;
+    background-image: url('/dist/theme/vien.webp');
+    background-size: contain;
+    background-repeat: no-repeat;
+    pointer-events: none;
+    transform: scaleX(-1);
+    z-index: 0;
+}

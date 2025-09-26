@@ -1,0 +1,101 @@
+[
+  {
+    "id": 10010,
+    "ma": "N038",
+    "ten": "Chụp cắt lớp vi tính",
+    "cls": true,
+    "congkham": false,
+    "viettat": "CCLVT",
+    "active": true
+  },
+  {
+    "id": 10011,
+    "ma": "N039",
+    "ten": "Cộng hưởng từ",
+    "cls": true,
+    "congkham": false,
+    "viettat": "CHT",
+    "active": true
+  },
+  {
+    "id": 11,
+    "ma": "N033",
+    "ten": "Điện não",
+    "cls": true,
+    "congkham": false,
+    "viettat": "DN",
+    "active": true
+  },
+  {
+    "id": 10,
+    "ma": "N032",
+    "ten": "Điện tim",
+    "cls": true,
+    "congkham": false,
+    "viettat": "DT",
+    "active": true
+  },
+  {
+    "id": 7,
+    "ma": "N029",
+    "ten": "Khám bệnh",
+    "cls": false,
+    "congkham": true,
+    "viettat": "KB",
+    "active": true
+  },
+  {
+    "id": 15,
+    "ma": "N037",
+    "ten": "Nhóm khác",
+    "cls": false,
+    "congkham": false,
+    "viettat": "NK",
+    "active": true
+  },
+  {
+    "id": 14,
+    "ma": "N036",
+    "ten": "Nội soi",
+    "cls": true,
+    "congkham": false,
+    "viettat": "NS",
+    "active": true
+  },
+  {
+    "id": 8,
+    "ma": "N030",
+    "ten": "Siêu âm",
+    "cls": true,
+    "congkham": false,
+    "viettat": "SA",
+    "active": true
+  },
+  {
+    "id": 13,
+    "ma": "N035",
+    "ten": "Thủ thuật",
+    "cls": false,
+    "congkham": false,
+    "viettat": "TT",
+    "active": true
+  },
+  {
+    "id": 9,
+    "ma": "N031",
+    "ten": "X Quang",
+    "cls": true,
+    "congkham": false,
+    "viettat": "XQ",
+    "active": true
+  },
+  {
+    "id": 12,
+    "ma": "N034",
+    "ten": "Xét nghiệm",
+    "cls": true,
+    "congkham": false,
+    "viettat": "XN",
+    "active": true
+  }
+]

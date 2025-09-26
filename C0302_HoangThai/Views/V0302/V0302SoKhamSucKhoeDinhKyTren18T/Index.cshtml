@@ -1,0 +1,830 @@
+﻿@{
+	ViewData["NonSixOs"] = true;
+	ViewData["Title"] = "SỔ KHÁM SỨC KHOẺ ĐỊNH KỲ TRÊN 18 TUỔI";
+}
+
+<link href="~/dist/lib/toastr/build/toastr.min.css" rel="stylesheet" />
+
+<link rel="stylesheet" href="~/dist/css/CSS0302/CSS0302SoKhamSucKhoeDinhKyTren18T.css">
+<style>
+
+
+</style>
+<div class="card p-1">
+	<div class="row">
+		<!-- Cột trái 20% -->
+		<div class="col-3">
+			<label for="idVaoVien">ID vào viện</label>
+			<div class="input-group">
+				<input id="idVaoVien" class="form-control" placeholder="Nhập id vào viện">
+				<button id="btnShowInfo" type="button" class="btn btn-outline-primary">
+					<svg xmlns="http://www.w3.org/2000/svg"
+						 class="icon icon-tabler icon-tabler-arrow-right-circle"
+						 width="20" height="20" viewBox="0 0 24 24"
+						 stroke-width="2" stroke="currentColor" fill="none"
+						 stroke-linecap="round" stroke-linejoin="round">
+						<path stroke="none" d="M0 0h24v24H0z" fill="none" />
+						<circle cx="12" cy="12" r="9" />
+						<path d="M8 12h8" />
+						<path d="M12 16l4 -4" />
+						<path d="M12 8l4 4" />
+					</svg>
+				</button>
+			</div>
+		</div>
+
+		<!-- Cột phải 80% (ẩn mặc định, chỉ hiện khi click) -->
+		<div class="col-8 d-block" id="infoPanel">
+			@* <div class="col-8 d-none" id="infoPanel"> *@
+			<div class="row h-100">
+				<div class="container">
+					<div class="outer-box">
+						<div class="inner-box">
+							<!-- Header Section -->
+							<div class="header">
+								<div class="col-6">
+									<div class="company-name">CÔNG TY TNHH PHÒNG KHÁM DA KHÓA SINH HẶU</div>
+									<div>Số: ...... /GKSK-......</div>
+								</div>
+
+								<div class="col-6">
+									<div class="company-name">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
+									<div>Độc lập - Tự Do - Hạnh Phúc</div>
+									<hr />
+								</div>
+							</div>
+
+							<div class="text-center mt-1">
+								<div class="document-title" style="margin-top: 5px !important;">GIẤY KHÁM SỨC KHỎE</div>
+								<div class="sub-title">
+									(Kèm theo thông tư số 23/2024/TT-BTT ngày 31 tháng 12 năm 2023 của Bộ trưởng Bộ T40)
+								</div>
+								<div class="sub-title">
+									(Dành cho người từ đủ 18 tuổi trở lên)
+								</div>
+							</div>
+
+							<!-- Personal Information Section -->
+							<div class="section">
+								<div class="row">
+									<!-- Cột trái: Ảnh 4x6 -->
+									<div class="col-3 text-center">
+										<div class="photo-box">
+											<span>Ảnh<br />4 x 6 cm</span>
+										</div>
+									</div>
+
+									<!-- Cột phải: Thông tin cá nhân -->
+									<div class="col-9">
+										<div class="form-field">
+											<span class="label">1. Họ và tên (chữ in hoa):</span>
+											<input type="text" class="input-line" />
+										</div>
+
+										<div class="form-field">
+											<span class="label" style="margin-right: 20px;">2. Giới tính:</span>
+											<label style="margin-right: 15px;">
+												Nam <input type="checkbox" name="gioiTinh" value="Nam">
+											</label>
+											<label>
+												Nữ <input type="checkbox" name="gioiTinh" value="Nữ">
+											</label>
+										</div>
+
+
+										<div class="form-field">
+											<span class="label">3. Sinh ngày</span>
+											<input type="text" class="input-line small" />
+											<span class="label">tháng</span>
+											<input type="text" class="input-line small" />
+											<span class="label">năm</span>
+											<input type="text" class="input-line small" />
+											<span class="label">(Tuổi:</span>
+											<input type="text" class="input-line small" />)
+										</div>
+
+										<div class="form-field">
+											<span class="label">4. Số CMND/CCCD/Hộ chiếu/định danh CD:</span>
+											<input type="text" class="input-line" />
+										</div>
+
+										<div class="form-field">
+											<span class="label">5. Cấp ngày:</span>
+											<input type="text" class="input-line small" /> /
+											<input type="text" class="input-line small" /> /
+											<input type="text" class="input-line small" />
+											<span class="label">Tại</span>
+											<input type="text" class="input-line" />
+										</div>
+
+										<div class="form-field" style="align-items: flex-start;">
+											<div id="choOHienTai" class="editable-div input-line-multiline" contenteditable="true">
+												<span class="fixed-label" style="background: white;
+    padding: 3px !important;" contenteditable="false">6. Chỗ ở hiện tại: </span>
+											</div>
+										</div>
+
+										<div class="form-field">
+											<span class="label">7. Lý do khám sức khỏe:</span>
+											<input type="text" class="input-line" />
+										</div>
+
+									</div>
+								</div>
+							</div>
+
+
+							<!-- Medical History Section -->
+							<div class="section">
+								<div class="section-title text-center">TIỀN SỬ BỆNH CỦA ĐỐI TƯỢNG KHÁM SỨC KHỎE</div>
+
+								<!-- 1. Tiền sử gia đình -->
+								<div class="subsection-title">1. Tiền sử gia đình:</div>
+								<div>
+									Có ai trong gia đình ông(bà) mắc các bệnh: truyền nhiễm, tim mạch, đái tháo đường, lao, hen phế quản, ung thư, động kinh, rối loạn tâm thần, bệnh khác:
+								</div>
+								<div class="form-field">
+									<div style="display:flex; align-items: center;">
+										<label style="margin-right:20px; display:flex; align-items:center;">
+											<input type="checkbox" name="tsGiaDinh" value="Khong" style="margin-right:5px;"> Không
+										</label>
+										<label style="display:flex; align-items:center;">
+											<input type="checkbox" name="tsGiaDinh" value="Co" style="margin-right:5px;"> Có
+										</label>
+									</div>
+									<div style="margin-left: 15px; ">
+										Nếu "có", đề nghị ghi cụ thể các bệnh:
+										<input type="text" class="input-line medium" style="min-width:300px;" />
+									</div>
+								</div>
+
+
+								<!-- 2. Tiền sử bản thân -->
+								<div class="subsection-title">2. Tiền sử bản thân: <span style="font-weight:100 !important;">Ông(bà) đã/đang mắc bệnh, tình trạng bệnh nào sau đây không:</span></div>
+
+								<table>
+									<thead>
+										<tr>
+											<th style="width: 5%">STT</th>
+											<th style="width: 60%">Tên bệnh, tật</th>
+											<th style="width: 15%">Có</th>
+											<th style="width: 15%">Không</th>
+										</tr>
+									</thead>
+									<tbody>
+										@{
+											var diseases = new[] {
+																				"Có bệnh hay bị thương trong 5 năm qua",
+																				"Có bệnh thần kinh hay bị thương ở đầu",
+																				"Bệnh mắt hoặc giảm thị lực (trừ trường hợp đeo kính thuốc)",
+																				"Bệnh ở tai, giảm sức nghe hoặc ù tai",
+																				"Bệnh ở tim, hoặc nhồi máu cơ tim, các bệnh tim mạch khác",
+																				"Can thiệp tim – mạch (thay van, bắc cầu nối, tạo hình mạch...)",
+																				"Tăng huyết áp",
+																				"Khó thở",
+																				"Bệnh phổi, hen, khí phế thũng, viêm phế quản mạn tính",
+																				"Bệnh thận, lọc máu",
+																				"Nhiễm trùng, lao",
+																				"Đái tháo đường hoặc kiểm soát tăng đường huyết",
+																				"Bệnh tâm thần",
+																				"Mất ý thức, rối loạn ý thức",
+																				"Nhức đầu, chóng mặt",
+																				"Bệnh gan",
+																				"Rối loạn giấc ngủ, ngừng thở khi ngủ, ngủ nhiều ban ngày, ngủ gà",
+																				"Tai biến mạch máu não hoặc liệt",
+																				"Bệnh hoặc tổn thương cơ xương",
+																				"Sử dụng thuốc đường huyết, liên tục",
+																				"Sử dụng ma túy và chất gây nghiện",
+																				"Bệnh khác (ghi rõ):"
+																				};
+										}
+
+										@for (int i = 0; i < diseases.Length; i++)
+										{
+											<tr>
+												<td class="text-center" style="border-left: 1px solid black;">@(i + 1)</td>
+												<td>@diseases[i]</td>
+												<td class="text-center">
+													<input type="checkbox" name="benh_@(i)" value="Co">
+												</td>
+												<td class="text-center">
+													<input type="checkbox" name="benh_@(i)" value="Khong">
+												</td>
+											</tr>
+										}
+									</tbody>
+								</table>
+							</div>
+
+						</div>
+					</div>
+					<div class="outer-box-2">
+						<div class="inner-box-2">
+							<div class="section">
+								<!-- 3. Câu hỏi khác -->
+								<div class="subsection-title">3. Câu hỏi khác (nếu có):</div>
+
+
+
+								<div class="form-field" style="align-items: flex-start;">
+									<div id="ongBaCoDieuTri" class="editable-div input-line-multiline" contenteditable="true">
+										<span class="fixed-label autoresize" style="background: white;
+    padding: 3px !important;" contenteditable="false">a) Ông(bà) có đang điều trị bệnh gì không? Nếu có, xin hãy liệt kê các thuốc đang dùng và liều lượng: </span>
+									</div>
+								</div>
+
+								<div class="form-field" style="align-items: flex-start;">
+									<div id="tienSuThaiSan" class="editable-div input-line-multiline" contenteditable="true">
+										<span class="fixed-label autoresize" style="background: white;
+    padding: 3px !important;" contenteditable="false">b) Tiền sử thai sản (đối với phụ nữ): </span>
+									</div>
+								</div>
+
+
+							</div>
+							<!-- Declaration Section -->
+							<div class="section">
+								<div>Tôi xin cam đoan những điều khai trên đây hoàn toàn đúng với sự thật theo sự hiểu biết của tôi.</div>
+
+								<div class="text-right" style="margin: 30px 20px 0 0;">
+									..........., ngày...... tháng...... năm......
+								</div>
+
+								<div style="    display: flex
+;
+    justify-content: end;">
+									<div class="text-center" style="margin:5px 20px 210px 0;">
+										<span style="font-weight: bold;">Người đề nghị khám sức khỏe</span><br />
+										(Hoặc cha/mẹ hoặc người giám hộ)<br />
+										(Ký và ghi rõ họ, tên)
+									</div>
+								</div>
+							</div>
+
+							<!-- Page Break -->
+							<div class="page-break"></div>
+
+							<!-- Physical Examination Section -->
+							<div class="section">
+								<div class="section-title text-center">I. KHÁM THỂ LỰC</div>
+
+								<div class="form-field">
+									<span class="label">Chiều cao:</span>
+									<input type="text" class="input-line medium" /> cm;
+									<span class="label" style=" margin-left: 20px;">Cân nặng:</span>
+									<input type="text" class="input-line medium" /> kg
+									<span class="label" style=" margin-left: 20px;">Chỉ số BMI:</span>
+									<input type="text" class="input-line medium" />
+								</div>
+
+								<div class="form-field">
+									<span class="label">Mạch:</span>
+									<input type="text" class="input-line medium" /> lần/phút
+									<span class="label" style=" margin-left: 20px;">Huyết áp:</span>
+									<input type="text" class="input-line medium" /> /
+									<input type="text" class="input-line medium" /> mmHg
+								</div>
+
+								<div class="form-field">
+									<span class="label">Phân loại thể lực:</span>
+									<input type="text" class="input-line" />
+								</div>
+							</div>
+
+							<!-- Clinical Examination Section -->
+							<div class="section">
+								<div class="section-title text-center">II. KHÁM LÂM SÀNG</div>
+
+								<table>
+									<thead>
+										<tr>
+											<th style="width: 83%; vertical-align: middle; text-align: center;">
+												Nội dung khám
+											</th>
+											<th style="width: 17%; vertical-align: middle; text-align: center;">
+												Họ tên, chữ ký của Bác sỹ
+											</th>
+										</tr>
+
+									</thead>
+									<tbody>
+										<tr>
+											<td style="    border-left: 1px solid black !important;">
+												<div class="subsection-title">1. Nội khoa</div>
+												<div class="form-field">
+													<span class="label">a) Tuần hoàn:</span>
+													<input type="text" class="input-line" />
+												</div>
+												<div class="form-field">
+													<span class="label">Phân loại:</span>
+													<input type="text" class="input-line" />
+												</div>
+
+												<div class="form-field">
+													<span class="label">b) Hô hấp:</span>
+													<input type="text" class="input-line" />
+												</div>
+												<div class="form-field">
+													<span class="label">Phân loại:</span>
+													<input type="text" class="input-line" />
+												</div>
+
+												<div class="form-field">
+													<span class="label">c) Tiêu hóa:</span>
+													<input type="text" class="input-line" />
+												</div>
+												<div class="form-field">
+													<span class="label">Phân loại:</span>
+													<input type="text" class="input-line" />
+												</div>
+
+												<div class="form-field">
+													<span class="label">d) Thận-Tiết niệu:</span>
+													<input type="text" class="input-line" />
+												</div>
+												<div class="form-field">
+													<span class="label">Phân loại:</span>
+													<input type="text" class="input-line" />
+												</div>
+
+												<div class="form-field">
+													<span class="label">e) Nội tiết:</span>
+													<input type="text" class="input-line" />
+												</div>
+												<div class="form-field">
+													<span class="label">Phân loại:</span>
+													<input type="text" class="input-line" />
+												</div>
+
+												<div class="form-field">
+													<span class="label">f) Cơ-xương-khớp:</span>
+													<input type="text" class="input-line" />
+												</div>
+												<div class="form-field">
+													<span class="label">Phân loại:</span>
+													<input type="text" class="input-line" />
+												</div>
+
+												<div class="form-field">
+													<span class="label">g) Thần kinh:</span>
+													<input type="text" class="input-line" />
+												</div>
+												<div class="form-field">
+													<span class="label">Phân loại:</span>
+													<input type="text" class="input-line" />
+												</div>
+
+												<div class="form-field">
+													<span class="label">h) Tâm thần:</span>
+													<input type="text" class="input-line" />
+												</div>
+												<div class="form-field">
+													<span class="label">Phân loại:</span>
+													<input type="text" class="input-line" />
+												</div>
+											</td>
+											<td style="vertical-align: top; height: 400px;"></td>
+										</tr>
+									</tbody>
+								</table>
+
+								<!-- Continue with other sections similarly -->
+							</div>
+
+						</div>
+					</div>
+					<!-- Thêm phần này vào sau phần "II. KHÁM LÂM SÀNG" trong file Index.cshtml -->
+
+					<div class="outer-box-2">
+						<div class="inner-box-2">
+							<!-- Continue with other sections similarly -->
+							<div class="section">
+								<table style="border: 1px solid;">
+									<thead style="border-bottom:0;">
+										<tr>
+											<th style="width: 83%; border-bottom:0 !important"></th>
+											<th style="width: 17%; border-bottom:0 !important"></th>
+										</tr>
+									</thead>
+									<tbody>
+
+										<!-- 2. Ngoại khoa, Da liễu -->
+										<tr>
+											<td style="border-left: 1px solid black !important; border-top: 0 !important; border-bottom: 0 !important;">
+												<div class="subsection-title">2. Ngoại khoa, Da liễu:</div>
+											</td>
+											<td style="vertical-align: top; border-top: 0 !important; border-bottom: 0 !important;"></td>
+										</tr>
+
+										<tr>
+											<td style="border-left: 1px solid black !important; border-top: 0 !important; border-bottom: 0 !important;">
+												<div class="form-field" style="align-items: flex-start;">
+													<div id="ngoaiKhoa" class="editable-div input-line-multiline"
+														 contenteditable="true" data-lines="">
+														<span class="fixed-label" style="background: white; padding: 3px !important;" contenteditable="false">
+															- Ngoại khoa:
+														</span>
+													</div>
+												</div>
+											</td>
+											<td style="vertical-align: top; border-top: 0 !important; border-bottom: 0 !important;"></td>
+										</tr>
+
+										<tr>
+											<td style="border-left: 1px solid black !important; border-top: 0 !important; border-bottom: 0 !important;">
+												<div class="form-field" style="align-items: flex-start;">
+													<div id="phanLoaiNgoaiKhoa" class="editable-div input-line-multiline" contenteditable="true">
+														<span class="fixed-label" style="background: white; padding: 3px !important;" contenteditable="false">Phân loại: </span>
+													</div>
+												</div>
+											</td>
+											<td style="vertical-align: top; border-top: 0 !important; border-bottom: 0 !important;"></td>
+										</tr>
+
+										<tr>
+											<td style="border-left: 1px solid black !important; border-top: 0 !important; border-bottom: 0 !important;">
+												<div class="form-field" style="align-items: flex-start;">
+													<div id="daLieu" class="editable-div input-line-multiline" contenteditable="true">
+														<span class="fixed-label" style="background: white; padding: 3px !important;" contenteditable="false">- Da liễu: </span>
+													</div>
+												</div>
+											</td>
+											<td style="vertical-align: top; border-top: 0 !important; border-bottom: 0 !important;"></td>
+										</tr>
+
+										<tr>
+											<td style="border-left: 1px solid black !important; border-top: 0 !important; border-bottom: 0 !important;">
+												<div class="form-field" style="align-items: flex-start;">
+													<div id="phanLoaiDaLieu" class="editable-div input-line-multiline" contenteditable="true">
+														<span class="fixed-label" style="background: white; padding: 3px !important;" contenteditable="false">Phân loại: </span>
+													</div>
+												</div>
+											</td>
+											<td style="vertical-align: top; border-top: 0 !important; border-bottom: 0 !important;"></td>
+										</tr>
+										<!-- 3. Sản phụ khoa -->
+										<!-- Sản phụ khoa -->
+										<tr>
+											<td style="border-left: 1px solid black !important; border-top: 0 !important; border-bottom: 0 !important;">
+												<div class="form-field" style="align-items: flex-start;">
+													<div id="sanPhuKhoa" class="editable-div input-line-multiline" contenteditable="true">
+														<span class="fixed-label" style="background: white; padding: 3px !important; font-weight:bold;" contenteditable="false">3. Sản phụ khoa: </span>
+													</div>
+												</div>
+											</td>
+											<td rowspan="2" style="vertical-align: top; border-top: 0 !important; border-bottom: 0 !important;"></td>
+										</tr>
+
+										<tr>
+											<td style="border-left: 1px solid black !important; border-top: 0 !important; border-bottom: 0 !important;">
+												<div class="form-field" style="align-items: flex-start;">
+													<div id="phanLoaiSanPhuKhoa" class="editable-div input-line-multiline" contenteditable="true">
+														<span class="fixed-label" style="background: white; padding: 3px !important;" contenteditable="false">Phân loại: </span>
+													</div>
+												</div>
+											</td>
+										</tr>
+
+										<!-- 4. Mắt -->
+										<!-- Mắt - Tiêu đề -->
+										<tr>
+											<td style="border-left: 1px solid black !important; border-top: 0 !important; border-bottom: 0 !important;">
+												<div class="form-field" style="align-items: flex-start;">
+													<div id="mat" class="editable-div input-line-multiline" contenteditable="true">
+														<span class="fixed-label" style="background: white; padding: 3px !important; font-weight:bold;" contenteditable="false">4. Mắt: </span>
+													</div>
+												</div>
+											</td>
+											<td style="vertical-align: top; border-top: 0 !important; border-bottom: 0 !important;"></td>
+										</tr>
+
+										<!-- Kết quả khám thị lực -->
+										<tr>
+											<td style="border-left: 1px solid black !important; border-top: 0 !important; border-bottom: 0 !important;">
+												<div class="form-field" style="align-items: flex-start;">
+													<div id="ketQuaKhamThiLuc" class="editable-div input-line-multiline" contenteditable="true">
+														<span class="fixed-label" style="background: white; padding: 3px !important;" contenteditable="false">- Kết quả khám thị lực: </span>
+													</div>
+												</div>
+											</td>
+											<td style="vertical-align: top; border-top: 0 !important; border-bottom: 0 !important;"></td>
+										</tr>
+
+										<!-- Không kính -->
+										<tr>
+											<td style="border-left: 1px solid black !important; border-top: 0 !important; border-bottom: 0 !important;">
+												<div class="form-field">
+													<span class="label" style="margin-left: 20px;">Không kính: Mắt phải:</span>
+													<input type="text" class="input-line small" />
+													<span class="label">Mắt trái:</span>
+													<input type="text" class="input-line small" />
+												</div>
+											</td>
+											<td style="vertical-align: top; border-top: 0 !important; border-bottom: 0 !important;"></td>
+										</tr>
+
+										<!-- Có kính -->
+										<tr>
+											<td style="border-left: 1px solid black !important; border-top: 0 !important; border-bottom: 0 !important;">
+												<div class="form-field">
+													<span class="label" style="margin-left: 20px;">Có kính: Mắt phải:</span>
+													<input type="text" class="input-line small" />
+													<span class="label">Mắt trái:</span>
+													<input type="text" class="input-line small" />
+												</div>
+											</td>
+											<td style="vertical-align: top; border-top: 0 !important; border-bottom: 0 !important;"></td>
+										</tr>
+
+										<!-- Các bệnh về mắt -->
+										<tr>
+											<td style="border-left: 1px solid black !important; border-top: 0 !important; border-bottom: 0 !important;">
+												<div class="form-field" style="align-items: flex-start;">
+													<div id="cacBenhVeMat" class="editable-div input-line-multiline" contenteditable="true">
+														<span class="fixed-label" style="background: white; padding: 3px !important;" contenteditable="false">- Các bệnh về mắt (nếu có): </span>
+													</div>
+												</div>
+											</td>
+											<td style="vertical-align: top; border-top: 0 !important; border-bottom: 0 !important;"></td>
+										</tr>
+
+										<!-- Phân loại mắt -->
+										<tr>
+											<td style="border-left: 1px solid black !important; border-top: 0 !important; border-bottom: 0 !important;">
+												<div class="form-field" style="align-items: flex-start;">
+													<div id="phanLoaiMat" class="editable-div input-line-multiline" contenteditable="true">
+														<span class="fixed-label" style="background: white; padding: 3px !important;" contenteditable="false">Phân loại: </span>
+													</div>
+												</div>
+											</td>
+											<td style="vertical-align: top; border-top: 0 !important; border-bottom: 0 !important;"></td>
+										</tr>
+
+										<!-- 5. Tai-Mũi-Họng -->
+										<!-- Tai-Mũi-Họng - Tiêu đề -->
+										<tr>
+											<td style="border-left: 1px solid black !important; border-top: 0 !important; border-bottom: 0 !important;">
+												<div class="form-field" style="align-items: flex-start;">
+													<div id="taiMuiHong" class="editable-div input-line-multiline" contenteditable="true">
+														<span class="fixed-label" style="background: white; padding: 3px !important; font-weight:bold;" contenteditable="false">5. Tai-Mũi-Họng: </span>
+													</div>
+												</div>
+											</td>
+											<td style="vertical-align: top; border-top: 0 !important; border-bottom: 0 !important;"></td>
+										</tr>
+
+										<!-- Kết quả khám thính lực -->
+										<tr>
+											<td style="border-left: 1px solid black !important; border-top: 0 !important; border-bottom: 0 !important;">
+												<div class="form-field" style="align-items: flex-start;">
+													<div id="ketQuaKhamThinhLuc" class="editable-div input-line-multiline" contenteditable="true">
+														<span class="fixed-label" style="background: white; padding: 3px !important;" contenteditable="false">- Kết quả khám thính lực: </span>
+													</div>
+												</div>
+											</td>
+											<td style="vertical-align: top; border-top: 0 !important; border-bottom: 0 !important;"></td>
+										</tr>
+
+										<!-- Tai trái -->
+										<tr>
+											<td style="border-left: 1px solid black !important; border-top: 0 !important; border-bottom: 0 !important;">
+												<div class="form-field">
+													<span class="label" style="margin-left: 20px;">Tai trái: Nói thường:</span>
+													<input type="text" class="input-line small" />
+													<span class="label">m, Nói thầm:</span>
+													<input type="text" class="input-line small" />
+													<span class="label">m</span>
+												</div>
+											</td>
+											<td style="vertical-align: top; border-top: 0 !important; border-bottom: 0 !important;"></td>
+										</tr>
+
+										<!-- Tai phải -->
+										<tr>
+											<td style="border-left: 1px solid black !important; border-top: 0 !important; border-bottom: 0 !important;">
+												<div class="form-field">
+													<span class="label" style="margin-left: 20px;">Tai phải: Nói thường:</span>
+													<input type="text" class="input-line small" />
+													<span class="label">m, Nói thầm:</span>
+													<input type="text" class="input-line small" />
+													<span class="label">m</span>
+												</div>
+											</td>
+											<td style="vertical-align: top; border-top: 0 !important; border-bottom: 0 !important;"></td>
+										</tr>
+
+										<!-- Các bệnh về tai mũi họng -->
+										<tr>
+											<td style="border-left: 1px solid black !important; border-top: 0 !important; border-bottom: 0 !important;">
+												<div class="form-field" style="align-items: flex-start;">
+													<div id="cacBenhTaiMuiHong" class="editable-div input-line-multiline" contenteditable="true">
+														<span class="fixed-label" style="background: white; padding: 3px !important;" contenteditable="false">- Các bệnh về tai mũi họng (nếu có): </span>
+													</div>
+												</div>
+											</td>
+											<td style="vertical-align: top; border-top: 0 !important; border-bottom: 0 !important;"></td>
+										</tr>
+
+										<!-- 6. Răng-Hàm-Mặt -->
+										<!-- Răng-Hàm-Mặt - Tiêu đề -->
+										<tr>
+											<td style="border-left: 1px solid black !important; border-top: 0 !important; border-bottom: 0 !important;">
+												<div class="subsection-title">6. Răng-Hàm-Mặt</div>
+											</td>
+											<td style="vertical-align: top; border-top: 0 !important; border-bottom: 0 !important;"></td>
+										</tr>
+
+										<!-- Kết quả khám -->
+										<tr>
+											<td style="border-left: 1px solid black !important; border-top: 0 !important; border-bottom: 0 !important;">
+												<div class="form-field">
+													<span class="label">- Kết quả khám:</span>
+												</div>
+											</td>
+											<td style="vertical-align: top; border-top: 0 !important; border-bottom: 0 !important;"></td>
+										</tr>
+
+										<!-- Hàm trên -->
+										<tr>
+											<td style="border-left: 1px solid black !important; border-top: 0 !important; border-bottom: 0 !important;">
+												<div class="form-field">
+													<span class="label" style="margin-left: 20px;">+ Hàm trên:</span>
+													<input type="text" class="input-line" />
+												</div>
+											</td>
+											<td style="vertical-align: top; border-top: 0 !important; border-bottom: 0 !important;"></td>
+										</tr>
+
+										<!-- Hàm dưới -->
+										<tr>
+											<td style="border-left: 1px solid black !important; border-top: 0 !important; border-bottom: 0 !important;">
+												<div class="form-field">
+													<span class="label" style="margin-left: 20px;">+ Hàm dưới:</span>
+													<input type="text" class="input-line" />
+												</div>
+											</td>
+											<td style="vertical-align: top; border-top: 0 !important; border-bottom: 0 !important;"></td>
+										</tr>
+
+										<!-- Các bệnh về răng hàm mặt -->
+										<tr>
+											<td style="border-left: 1px solid black !important; border-top: 0 !important; border-bottom: 0 !important;">
+												<div class="form-field" style="align-items: flex-start;">
+													<div id="cacBenhRangHamMat" class="editable-div input-line-multiline" contenteditable="true">
+														<span class="fixed-label" style="background: white; padding: 3px !important;" contenteditable="false">- Các bệnh về răng hàm mặt (nếu có): </span>
+													</div>
+												</div>
+											</td>
+											<td style="vertical-align: top; border-top: 0 !important; border-bottom: 0 !important;"></td>
+										</tr>
+
+										<!-- Phân loại -->
+										<tr>
+											<td style="border-left: 1px solid black !important; border-top: 0 !important; border-bottom: 0 !important;">
+												<div class="form-field">
+													<span class="label">Phân loại:</span>
+													<input type="text" class="input-line" />
+												</div>
+											</td>
+											<td style="vertical-align: top; border-top: 0 !important; border-bottom: 0 !important;"></td>
+										</tr>
+
+									</tbody>
+								</table>
+
+							</div>
+
+							<!-- Continue with other sections -->
+						</div>
+					</div>
+					<div class="outer-box-2">
+						<div class="inner-box-2">
+							<!-- Paraclinical Examination Section -->
+							<div class="section">
+								<div class="section-title text-center ">III. KHÁM CẬN LÂM SÀNG</div>
+
+								<table>
+									<thead>
+										<tr>
+											<th style="width: 83%; vertical-align: middle; text-align: center;">
+												Nội dung khám
+											</th>
+											<th style="width: 17%; vertical-align: middle; text-align: center;">
+												Họ tên, chữ ký của Bác sỹ
+											</th>
+										</tr>
+
+									</thead>
+									<tbody>
+										<tr>
+											<td style="border-left: 1px solid black !important;">
+												<div class="subsection-title">1. Xét nghiệm máu:</div>
+												<div>a) Công thức máu:</div>
+												<div class="form-field">
+													<span class="label">- Số lượng hồng cầu:</span>
+													<input type="text" class="input-line" />
+												</div>
+												<div class="form-field">
+													<span class="label">- Số lượng bạch cầu:</span>
+													<input type="text" class="input-line" />
+												</div>
+												<div class="form-field">
+													<span class="label">- Số lượng tiểu cầu:</span>
+													<input type="text" class="input-line" />
+												</div>
+
+												<div>b) Sinh hóa máu:</div>
+												<div class="form-field">
+													<span class="label">- Đường máu:</span>
+													<input type="text" class="input-line" />
+												</div>
+												<div class="form-field">
+													<span class="label">- Ure:</span>
+													<input type="text" class="input-line" />
+												</div>
+												<div class="form-field">
+													<span class="label">- Creatinin:</span>
+													<input type="text" class="input-line" />
+												</div>
+												<div class="form-field">
+													<span class="label">- ASAT(GOT):</span>
+													<input type="text" class="input-line" />
+												</div>
+												<div class="form-field">
+													<span class="label">- ALAT(GPT):</span>
+													<input type="text" class="input-line" />
+												</div>
+
+												<div class="subsection-title">2. Xét nghiệm nước tiểu:</div>
+												<div class="form-field">
+													<span class="label">a) Đường:</span>
+													<input type="text" class="input-line" />
+												</div>
+												<div class="form-field">
+													<span class="label">b) Protein:</span>
+													<input type="text" class="input-line" />
+												</div>
+												<div class="form-field">
+													<span class="label">c) Khác (nếu có):</span>
+													<input type="text" class="input-line" />
+												</div>
+
+												<div class="subsection-title">3. Chẩn đoán hình ảnh (XQ tim phổi thẳng):</div>
+												<textarea style="width: 100%; height: 100px;"></textarea>
+
+											</td>
+											<td style="vertical-align: top; height: 400px;"></td>
+										</tr>
+									</tbody>
+								</table>
+							</div>
+
+							<!-- Conclusion Section -->
+							<div class="section">
+								<div class="section-title">IV. KẾT LUẬN</div>
+
+								<div class="form-field" style="align-items: flex-start;">
+									<div id="phanLoaiSucKhoe" class="editable-div input-line-multiline" contenteditable="true">
+										<span class="fixed-label" style="background: white;
+    padding: 2px !important;" contenteditable="false">1. Phân loại sức khỏe: </span>
+									</div>
+								</div>
+								<div class="form-field" style="align-items: flex-start;">
+									<div id="cacBenhTat" class="editable-div input-line-multiline" contenteditable="true">
+										<span class="fixed-label" style="background: white;
+    padding: 2px !important;" contenteditable="false">2. Các bệnh, tật (nếu có): </span>
+									</div>
+								</div>
+								<div class="text-right" style="margin: 30px 20px 0 0;">
+									..........., ngày...... tháng...... năm......
+								</div>
+
+								<div style="    display: flex
+;
+    justify-content: end;">
+									<div class="text-center" style="margin:5px 20px 210px 0;">
+										<span style="font-weight: bold;">NGƯỜI KẾT LUẬN</span><br />
+										(Ký, ghi rõ họ tên và đóng dấu)
+									</div>
+								</div>
+							</div>
+						</div>
+
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+
+
+@section Scripts {
+
+		<script src="~/dist/lib/toastr/build/toastr.min.js"></script>
+		<script src="~/dist/js/J0302/J0302SoKhamSucKhoeDinhKyTren18T.js" asp-append-version="true" defer></script>
+
+}
+
+
+
+

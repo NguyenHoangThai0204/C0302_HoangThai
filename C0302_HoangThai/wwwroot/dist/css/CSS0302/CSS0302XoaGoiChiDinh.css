@@ -1,0 +1,197 @@
+﻿.goi-remove svg {
+    display: block; /* bỏ inline spacing mặc định */
+    margin: auto !important; /* ép nằm giữa container flex */
+}
+/* Toastr notification styling */
+.toast-title {
+    font-weight: bold;
+}
+
+.toast-message {
+    font-size: 14px;
+}
+
+.toast-success {
+    background-color: #51a351;
+}
+
+.toast-error {
+    background-color: #bd362f;
+}
+
+.patient-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.patient-details {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.patient-name {
+    font-weight: 700;
+    color: #2c3e50;
+    font-size: 1.1em;
+}
+
+.patient-birth {
+    color: #6c757d;
+    font-weight: 500;
+    background-color: #e9ecef;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.patient-icon {
+    font-size: 1.3em;
+}
+/* Modal rộng và cao cố định */
+.custom-modal {
+    max-width: 83% !important;
+    margin: auto;
+}
+
+    .custom-modal .modal-content {
+        height: 65vh; /* cao 65% màn hình */
+    }
+
+    .custom-modal .modal-body {
+        max-height: calc(65vh - 60px); /* trừ header/footer */
+        overflow-y: auto;
+    }
+
+th, td {
+    white-space: nowrap;
+    padding: 8px 12px;
+}
+
+.table-scroll-container {
+    height: 50vh;
+    overflow: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    position: relative;
+}
+
+/* Căn chỉnh nội dung trong bảng */
+.table-gói td:first-child {
+    text-align: left;
+}
+
+.table-gói td:last-child {
+    text-align: center;
+}
+
+#dichVuTable td:nth-child(1) {
+    text-align: left;
+}
+
+#dichVuTable td:nth-child(2),
+#dichVuTable td:nth-child(3) {
+    text-align: right;
+}
+
+/* Đồng bộ chiều rộng cột giữa header và body */
+.table-col-75 {
+    width: 75%;
+}
+
+.table-col-25 {
+    width: 25%;
+}
+
+.table-col-65 {
+    width: 65%;
+}
+
+.table-col-15 {
+    width: 15%;
+}
+
+.table-col-20 {
+    width: 20%;
+}
+
+/* Hiệu ứng khi chọn gói */
+.table-gói tbody tr {
+    cursor: pointer;
+}
+
+    .table-gói tbody tr.active {
+        background-color: #e3f2fd;
+    }
+
+/* Đảm bảo table layout fixed */
+.table-fixed-layout {
+    table-layout: fixed;
+    width: 100% !important;
+    margin-bottom: 0;
+    border-collapse: collapse;
+    border-spacing: 0;
+}
+
+/* Đảm bảo header cố định khi scroll - FIXED */
+.table-scroll-container table thead th {
+    position: sticky;
+    top: -1px; /* Quan trọng: sửa lỗi khoảng hở */
+    background-color: #f8f9fa;
+    z-index: 100;
+    font-weight: bold;
+    border-bottom: 1px solid #dee2e6;
+}
+
+/* Đảm bảo bảng chiếm toàn bộ chiều rộng */
+.full-width-table {
+    width: 100%;
+}
+
+/* Style cho nút xoá và checkbox */
+.action-buttons {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.goi-checkbox {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+}
+
+.goi-remove {
+    padding: 0.25rem;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+    .goi-remove svg {
+        width: 16px;
+        height: 16px;
+    }
+
+/* Đảm bảo header có cùng style */
+.table-scroll-container thead th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    text-align: center;
+    vertical-align: middle;
+}
+/* Cột tên dịch vụ wrap được */
+#dichVuTable td:nth-child(1),
+.table-fixed-layout thead th:nth-child(1) {
+    white-space: normal; /* Cho phép xuống dòng */
+    word-break: break-word; /* Cắt từ dài */
+}
+
+#goiVuTable td:nth-child(1),
+.table-fixed-layout thead th:nth-child(1) {
+    white-space: normal; /* Cho phép xuống dòng */
+    word-break: break-word; /* Cắt từ dài */
+}

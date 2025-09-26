@@ -1,0 +1,704 @@
+﻿@{
+	ViewData["NonSixOs"] = true;
+	ViewData["Title"] = "SỔ KHÁM SỨC KHOẺ ĐỊNH KỲ TRÊN 18 TUỔI";
+}
+
+<link href="~/dist/lib/toastr/build/toastr.min.css" rel="stylesheet" />
+
+<link rel="stylesheet" href="~/dist/css/CSS0302/CSS0302SoKhamSucKhoeDinhKyTren18T.css">
+<style>
+
+
+</style>
+<div class="card p-1">
+	<div class="row">
+		<!-- Cột trái 20% -->
+		<div class="col-3">
+			<label for="idVaoVien">ID vào viện</label>
+			<div class="input-group">
+				<input id="idVaoVien" class="form-control" placeholder="Nhập id vào viện">
+				<button id="btnShowInfo" type="button" class="btn btn-outline-primary">
+					<svg xmlns="http://www.w3.org/2000/svg"
+						 class="icon icon-tabler icon-tabler-arrow-right-circle"
+						 width="20" height="20" viewBox="0 0 24 24"
+						 stroke-width="2" stroke="currentColor" fill="none"
+						 stroke-linecap="round" stroke-linejoin="round">
+						<path stroke="none" d="M0 0h24v24H0z" fill="none" />
+						<circle cx="12" cy="12" r="9" />
+						<path d="M8 12h8" />
+						<path d="M12 16l4 -4" />
+						<path d="M12 8l4 4" />
+					</svg>
+				</button>
+			</div>
+		</div>
+
+		<!-- Cột phải 80% (ẩn mặc định, chỉ hiện khi click) -->
+		<div class="col-8 d-block" id="infoPanel">
+			@* <div class="col-8 d-none" id="infoPanel"> *@
+			<div class="row h-100">
+				<div class="container">
+					<div class="outer-box">
+						<div class="inner-box">
+							<!-- Header Section -->
+							<div class="header">
+								<div class="col-6">
+									<div class="company-name">CÔNG TY TNHH PHÒNG KHÁM DA KHÓA SINH HẶU</div>
+									<div>Số: ...... /GKSK-......</div>
+								</div>
+
+								<div class="col-6">
+									<div class="company-name">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
+									<div>Độc lập - Tự Do - Hạnh Phúc</div>
+									<hr />
+								</div>
+							</div>
+
+							<div class="text-center mt-1">
+								<div class="document-title" style="margin-top: 5px !important;">GIẤY KHÁM SỨC KHỎE</div>
+								<div class="sub-title">
+									(Kèm theo thông tư số 23/2024/TT-BTT ngày 31 tháng 12 năm 2023 của Bộ trưởng Bộ T40)
+								</div>
+								<div class="sub-title">
+									(Dành cho người từ đủ 18 tuổi trở lên)
+								</div>
+							</div>
+
+							<!-- Personal Information Section -->
+							<div class="section">
+								<div class="row">
+									<!-- Cột trái: Ảnh 4x6 -->
+									<div class="col-3 text-center">
+										<div class="photo-box">
+											<span>Ảnh<br />4 x 6 cm</span>
+										</div>
+									</div>
+
+									<!-- Cột phải: Thông tin cá nhân -->
+									<div class="col-9">
+										<div class="form-field">
+											<span class="label">1. Họ và tên (chữ in hoa):</span>
+											<input type="text" class="input-line" />
+										</div>
+
+										<div class="form-field">
+											<span class="label" style="margin-right: 20px;">2. Giới tính:</span>
+											<label style="margin-right: 15px;">
+												Nam <input type="checkbox" name="gioiTinh" value="Nam">
+											</label>
+											<label>
+												Nữ <input type="checkbox" name="gioiTinh" value="Nữ">
+											</label>
+										</div>
+
+
+										<div class="form-field">
+											<span class="label">3. Sinh ngày</span>
+											<input type="text" class="input-line small" />
+											<span class="label">tháng</span>
+											<input type="text" class="input-line small" />
+											<span class="label">năm</span>
+											<input type="text" class="input-line small" />
+											<span class="label">(Tuổi:</span>
+											<input type="text" class="input-line small" />)
+										</div>
+
+										<div class="form-field">
+											<span class="label">4. Số CMND/CCCD/Hộ chiếu/định danh CD:</span>
+											<input type="text" class="input-line" />
+										</div>
+
+										<div class="form-field">
+											<span class="label">5. Cấp ngày:</span>
+											<input type="text" class="input-line small" /> /
+											<input type="text" class="input-line small" /> /
+											<input type="text" class="input-line small" />
+											<span class="label">Tại</span>
+											<input type="text" class="input-line" />
+										</div>
+
+										<div class="form-field" style="align-items: flex-start;">
+											<div id="choOHienTai" class="editable-div input-line-multiline" contenteditable="true">
+												<span class="fixed-label" style="background: white;
+    padding: 3px !important;" contenteditable="false">6. Chỗ ở hiện tại: </span>
+											</div>
+										</div>
+
+										<div class="form-field">
+											<span class="label">7. Lý do khám sức khỏe:</span>
+											<input type="text" class="input-line" />
+										</div>
+
+									</div>
+								</div>
+							</div>
+
+
+							<!-- Medical History Section -->
+							<div class="section">
+								<div class="section-title text-center">TIỀN SỬ BỆNH CỦA ĐỐI TƯỢNG KHÁM SỨC KHỎE</div>
+
+								<!-- 1. Tiền sử gia đình -->
+								<div class="subsection-title">1. Tiền sử gia đình:</div>
+								<div>
+									Có ai trong gia đình ông(bà) mắc các bệnh: truyền nhiễm, tim mạch, đái tháo đường, lao, hen phế quản, ung thư, động kinh, rối loạn tâm thần, bệnh khác:
+								</div>
+								<div class="form-field">
+									<div style="display:flex; align-items: center;">
+										<label style="margin-right:20px; display:flex; align-items:center;">
+											<input type="checkbox" name="tsGiaDinh" value="Khong" style="margin-right:5px;"> Không
+										</label>
+										<label style="display:flex; align-items:center;">
+											<input type="checkbox" name="tsGiaDinh" value="Co" style="margin-right:5px;"> Có
+										</label>
+									</div>
+									<div style="margin-left: 15px; ">
+										Nếu "có", đề nghị ghi cụ thể các bệnh:
+										<input type="text" class="input-line medium" style="min-width:300px;" />
+									</div>
+								</div>
+
+
+								<!-- 2. Tiền sử bản thân -->
+								<div class="subsection-title">2. Tiền sử bản thân: <span style="font-weight:100 !important;">Ông(bà) đã/đang mắc bệnh, tình trạng bệnh nào sau đây không:</span></div>
+
+								<table>
+									<thead>
+										<tr>
+											<th style="width: 5%">STT</th>
+											<th style="width: 60%">Tên bệnh, tật</th>
+											<th style="width: 15%">Có</th>
+											<th style="width: 15%">Không</th>
+										</tr>
+									</thead>
+									<tbody>
+										@{
+											var diseases = new[] {
+																				"Có bệnh hay bị thương trong 5 năm qua",
+																				"Có bệnh thần kinh hay bị thương ở đầu",
+																				"Bệnh mắt hoặc giảm thị lực (trừ trường hợp đeo kính thuốc)",
+																				"Bệnh ở tai, giảm sức nghe hoặc ù tai",
+																				"Bệnh ở tim, hoặc nhồi máu cơ tim, các bệnh tim mạch khác",
+																				"Can thiệp tim – mạch (thay van, bắc cầu nối, tạo hình mạch...)",
+																				"Tăng huyết áp",
+																				"Khó thở",
+																				"Bệnh phổi, hen, khí phế thũng, viêm phế quản mạn tính",
+																				"Bệnh thận, lọc máu",
+																				"Nhiễm trùng, lao",
+																				"Đái tháo đường hoặc kiểm soát tăng đường huyết",
+																				"Bệnh tâm thần",
+																				"Mất ý thức, rối loạn ý thức",
+																				"Nhức đầu, chóng mặt",
+																				"Bệnh gan",
+																				"Rối loạn giấc ngủ, ngừng thở khi ngủ, ngủ nhiều ban ngày, ngủ gà",
+																				"Tai biến mạch máu não hoặc liệt",
+																				"Bệnh hoặc tổn thương cơ xương",
+																				"Sử dụng thuốc đường huyết, liên tục",
+																				"Sử dụng ma túy và chất gây nghiện",
+																				"Bệnh khác (ghi rõ):"
+																				};
+										}
+
+										@for (int i = 0; i < diseases.Length; i++)
+										{
+											<tr>
+												<td class="text-center" style="border-left: 1px solid black;">@(i + 1)</td>
+												<td>@diseases[i]</td>
+												<td class="text-center">
+													<input type="checkbox" name="benh_@(i)" value="Co">
+												</td>
+												<td class="text-center">
+													<input type="checkbox" name="benh_@(i)" value="Khong">
+												</td>
+											</tr>
+										}
+									</tbody>
+								</table>
+							</div>
+
+						</div>
+					</div>
+					<div class="outer-box-2">
+						<div class="inner-box-2">
+							<div class="section">
+								<!-- 3. Câu hỏi khác -->
+								<div class="subsection-title">3. Câu hỏi khác (nếu có):</div>
+
+
+
+								<div class="form-field" style="align-items: flex-start;">
+									<div id="ongBaCoDieuTri" class="editable-div input-line-multiline" contenteditable="true">
+										<span class="fixed-label autoresize" style="background: white;
+    padding: 3px !important;" contenteditable="false">a) Ông(bà) có đang điều trị bệnh gì không? Nếu có, xin hãy liệt kê các thuốc đang dùng và liều lượng: </span>
+									</div>
+								</div>
+
+								<div class="form-field" style="align-items: flex-start;">
+									<div id="tienSuThaiSan" class="editable-div input-line-multiline" contenteditable="true">
+										<span class="fixed-label autoresize" style="background: white;
+    padding: 3px !important;" contenteditable="false">b) Tiền sử thai sản (đối với phụ nữ): </span>
+									</div>
+								</div>
+
+
+							</div>
+							<!-- Declaration Section -->
+							<div class="section">
+								<div>Tôi xin cam đoan những điều khai trên đây hoàn toàn đúng với sự thật theo sự hiểu biết của tôi.</div>
+
+								<div class="text-right" style="margin: 30px 20px 0 0;">
+									..........., ngày...... tháng...... năm......
+								</div>
+
+								<div style="    display: flex
+;
+    justify-content: end;">
+									<div class="text-center" style="margin:5px 20px 210px 0;">
+										<span style="font-weight: bold;">Người đề nghị khám sức khỏe</span><br />
+										(Hoặc cha/mẹ hoặc người giám hộ)<br />
+										(Ký và ghi rõ họ, tên)
+									</div>
+								</div>
+							</div>
+
+							<!-- Page Break -->
+							<div class="page-break"></div>
+
+							<!-- Physical Examination Section -->
+							<div class="section">
+								<div class="section-title text-center">I. KHÁM THỂ LỰC</div>
+
+								<div class="form-field">
+									<span class="label">Chiều cao:</span>
+									<input type="text" class="input-line medium" /> cm;
+									<span class="label" style=" margin-left: 20px;">Cân nặng:</span>
+									<input type="text" class="input-line medium" /> kg
+									<span class="label" style=" margin-left: 20px;">Chỉ số BMI:</span>
+									<input type="text" class="input-line medium" />
+								</div>
+
+								<div class="form-field">
+									<span class="label">Mạch:</span>
+									<input type="text" class="input-line medium" /> lần/phút
+									<span class="label" style=" margin-left: 20px;">Huyết áp:</span>
+									<input type="text" class="input-line medium" /> /
+									<input type="text" class="input-line medium" /> mmHg
+								</div>
+
+								<div class="form-field">
+									<span class="label">Phân loại thể lực:</span>
+									<input type="text" class="input-line" />
+								</div>
+							</div>
+
+							<!-- Clinical Examination Section -->
+							<div class="section">
+								<div class="section-title text-center">II. KHÁM LÂM SÀNG</div>
+
+								<table>
+									<thead>
+										<tr>
+											<th style="width: 70%">Nội dung khám</th>
+											<th style="width: 30%">Họ tên, chữ ký của Bác sỹ</th>
+										</tr>
+									</thead>
+									<tbody>
+										<tr>
+											<td style="    border-left: 1px solid black !important;">
+												<div class="subsection-title">1. Nội khoa</div>
+												<div class="form-field">
+													<span class="label">a) Tuần hoàn:</span>
+													<input type="text" class="input-line" />
+												</div>
+												<div class="form-field">
+													<span class="label">Phân loại:</span>
+													<input type="text" class="input-line" />
+												</div>
+
+												<div class="form-field">
+													<span class="label">b) Hô hấp:</span>
+													<input type="text" class="input-line" />
+												</div>
+												<div class="form-field">
+													<span class="label">Phân loại:</span>
+													<input type="text" class="input-line" />
+												</div>
+
+												<div class="form-field">
+													<span class="label">c) Tiêu hóa:</span>
+													<input type="text" class="input-line" />
+												</div>
+												<div class="form-field">
+													<span class="label">Phân loại:</span>
+													<input type="text" class="input-line" />
+												</div>
+
+												<div class="form-field">
+													<span class="label">d) Thận-Tiết niệu:</span>
+													<input type="text" class="input-line" />
+												</div>
+												<div class="form-field">
+													<span class="label">Phân loại:</span>
+													<input type="text" class="input-line" />
+												</div>
+
+												<div class="form-field">
+													<span class="label">e) Nội tiết:</span>
+													<input type="text" class="input-line" />
+												</div>
+												<div class="form-field">
+													<span class="label">Phân loại:</span>
+													<input type="text" class="input-line" />
+												</div>
+
+												<div class="form-field">
+													<span class="label">f) Cơ-xương-khớp:</span>
+													<input type="text" class="input-line" />
+												</div>
+												<div class="form-field">
+													<span class="label">Phân loại:</span>
+													<input type="text" class="input-line" />
+												</div>
+
+												<div class="form-field">
+													<span class="label">g) Thần kinh:</span>
+													<input type="text" class="input-line" />
+												</div>
+												<div class="form-field">
+													<span class="label">Phân loại:</span>
+													<input type="text" class="input-line" />
+												</div>
+
+												<div class="form-field">
+													<span class="label">h) Tâm thần:</span>
+													<input type="text" class="input-line" />
+												</div>
+												<div class="form-field">
+													<span class="label">Phân loại:</span>
+													<input type="text" class="input-line" />
+												</div>
+											</td>
+											<td style="vertical-align: top; height: 400px;"></td>
+										</tr>
+									</tbody>
+								</table>
+
+								<!-- Continue with other sections similarly -->
+							</div>
+
+						</div>
+					</div>
+					<div class="outer-box-2">
+						<div class="inner-box-2">
+							<!-- Paraclinical Examination Section -->
+							<div class="section">
+								<div class="section-title">III. KHÁM CẬN LÂM SÀNG</div>
+
+								<table>
+									<thead>
+										<tr>
+											<th style="width: 70%">Nội dung khám</th>
+											<th style="width: 30%">Họ tên, chữ ký của Bác sỹ</th>
+										</tr>
+									</thead>
+									<tbody>
+										<tr>
+											<td>
+												<div class="subsection-title">1. Xét nghiệm máu:</div>
+												<div>a) Công thức máu:</div>
+												<div class="form-field">
+													<span class="label">- Số lượng hồng cầu:</span>
+													<input type="text" class="input-line" />
+												</div>
+												<div class="form-field">
+													<span class="label">- Số lượng bạch cầu:</span>
+													<input type="text" class="input-line" />
+												</div>
+												<div class="form-field">
+													<span class="label">- Số lượng tiểu cầu:</span>
+													<input type="text" class="input-line" />
+												</div>
+
+												<div>b) Sinh hóa máu:</div>
+												<div class="form-field">
+													<span class="label">- Đường máu:</span>
+													<input type="text" class="input-line" />
+												</div>
+												<div class="form-field">
+													<span class="label">- Ure:</span>
+													<input type="text" class="input-line" />
+												</div>
+												<div class="form-field">
+													<span class="label">- Creatinin:</span>
+													<input type="text" class="input-line" />
+												</div>
+												<div class="form-field">
+													<span class="label">- ASAT(GOT):</span>
+													<input type="text" class="input-line" />
+												</div>
+												<div class="form-field">
+													<span class="label">- ALAT(GPT):</span>
+													<input type="text" class="input-line" />
+												</div>
+
+												<div class="subsection-title">2. Xét nghiệm nước tiểu:</div>
+												<div class="form-field">
+													<span class="label">a) Đường:</span>
+													<input type="text" class="input-line" />
+												</div>
+												<div class="form-field">
+													<span class="label">b) Protein:</span>
+													<input type="text" class="input-line" />
+												</div>
+												<div class="form-field">
+													<span class="label">c) Khác (nếu có):</span>
+													<input type="text" class="input-line" />
+												</div>
+
+												<div class="subsection-title">3. Chẩn đoán hình ảnh (XQ tim phổi thẳng):</div>
+												<div class="bordered-box" style="min-height: 50px;"></div>
+											</td>
+											<td style="vertical-align: top; height: 400px;"></td>
+										</tr>
+									</tbody>
+								</table>
+							</div>
+
+							<!-- Conclusion Section -->
+							<div class="section">
+								<div class="section-title">IV. KẾT LUẬN</div>
+
+								<div class="form-field" style="align-items: flex-start;">
+									<div id="phanLoaiSucKhoe" class="editable-div input-line-multiline" contenteditable="true">
+										<span class="fixed-label" style="background: white;
+    padding: 2px !important;" contenteditable="false">1. Phân loại sức khỏe: </span>
+									</div>
+								</div>
+								<div class="form-field" style="align-items: flex-start;">
+									<div id="cacBenhTat" class="editable-div input-line-multiline" contenteditable="true">
+										<span class="fixed-label" style="background: white;
+    padding: 2px !important;" contenteditable="false">2. Các bệnh, tật (nếu có): </span>
+									</div>
+								</div>
+
+
+
+								<div class="bordered-box" style="min-height: 100px;"></div>
+
+								<div class="text-right" style="margin-top: 30px;">
+									......, ngày...... tháng...... năm......
+								</div>
+
+								<div class="signature-area">
+									<strong>NGƯỜI KẾT LUẬN</strong><br />
+									(Ký, ghi rõ họ tên và đóng dấu)
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+
+
+@section Scripts {
+
+	<script src="~/dist/lib/toastr/build/toastr.min.js"></script>
+	<script src="~/dist/js/J0302/J0302SoKhamSucKhoeDinhKyTren18T.js" asp-append-version="true" defer></script>
+	<script>
+		document.querySelectorAll('.editable-div').forEach(div => {
+			function updateBackgroundDots() {
+				const lineHeight = 20; // must match your CSS line-height
+				const minLines = 2;
+				const height = div.scrollHeight;
+				const lines = Math.max(minLines, Math.ceil(height / lineHeight));
+				let positions = [];
+				for (let i = 1; i <= lines; i++) {
+					positions.push(`0 ${i * lineHeight - 1}px`);
+				}
+				div.style.backgroundPosition = positions.join(', ');
+			}
+
+			// Initial update
+			updateBackgroundDots();
+
+			// Update on input/change/resize
+			div.addEventListener('input', updateBackgroundDots);
+			div.addEventListener('keyup', updateBackgroundDots);
+			div.addEventListener('paste', function() {
+				setTimeout(updateBackgroundDots, 0);
+			});
+			// Optional: update on window resize
+			window.addEventListener('resize', updateBackgroundDots);
+		});
+
+
+		document.querySelectorAll('input[name="gioiTinh"]').forEach(cb => {
+		  cb.addEventListener("change", function () {
+			if (this.checked) {
+			  document.querySelectorAll('input[name="gioiTinh"]').forEach(other => {
+				if (other !== this) other.checked = false;
+			  });
+			}
+		  });
+		});
+					// ===== Tiền sử gia đình (Có/Không) =====
+				   // ===== Tiền sử gia đình =====
+		const tsGiaDinh = document.querySelectorAll('input[name="tsGiaDinh"]');
+		tsGiaDinh.forEach(cb => {
+			cb.addEventListener("change", function () {
+				if (this.checked) {
+					tsGiaDinh.forEach(other => {
+						if (other !== this) other.checked = false;
+					});
+				}
+			});
+		});
+
+		// ===== Các bệnh trong bảng =====
+		const benhRows = document.querySelectorAll("table tbody tr");
+		benhRows.forEach(row => {
+			const checkboxes = row.querySelectorAll('input[type="checkbox"]');
+
+			checkboxes.forEach(cb => {
+				cb.addEventListener("change", function () {
+					// Nếu checkbox này được chọn
+					if (this.checked) {
+						// Bỏ chọn tất cả checkbox khác trong cùng dòng
+						checkboxes.forEach(other => {
+							if (other !== this) other.checked = false;
+						});
+					}
+				});
+			});
+		});
+			// Ví dụ dữ liệu JSON (lấy từ server hoặc ajax)
+			  const thongTin = {
+			hoTen: "Nguyễn Hoàng Dương Gian Giai Huynh Đệ",
+			gioiTinh: "Nam", // "Nam" hoặc "Nữ"
+			ngaySinh: "01",
+			thangSinh: "01",
+			namSinh: "1990",
+			tuoi: "35",
+			soCMND: "123456789",
+			capNgay: { ngay: "15", thang: "08", nam: "2010" },
+			noiCap: "Hà Nội",
+			choOHienTai: "123 Đường ABC, Quận XYZ, TP.HCM",
+			lyDo: "Khám sức khỏe định kỳ",
+
+			// ===== Thêm dữ liệu bệnh án =====
+			tienSuGiaDinh: {
+				co: true,
+				ghiChu: "Tim mạch, tiểu đường"
+			},
+			tienSuBanThan: {
+				0: "Khong", // Bệnh 1
+				1: "Co",    // Bệnh 2
+				2: "Co",
+				5: "Co",    // Bệnh 6
+				20: "Khong" // Bệnh 21
+			}
+		};
+
+			   function loadThongTin(data) {
+			// 1. Họ và tên
+			const hoTen = document.querySelector('input[type="text"].input-line');
+			hoTen.value = data.hoTen;
+			hoTen.style.fontWeight = "bold";
+			hoTen.style.fontSize = "16px";
+
+			// 2. Giới tính
+			const checkboxes = document.querySelectorAll('input[name="gioiTinh"]');
+			checkboxes.forEach(cb => cb.checked = false);
+			const gioiTinh = [...checkboxes].find(cb => cb.value === data.gioiTinh);
+			if (gioiTinh) {
+				gioiTinh.checked = true;
+				gioiTinh.parentElement.style.fontWeight = "bold";
+				gioiTinh.parentElement.style.fontSize = "16px";
+			}
+
+			// 3. Ngày tháng năm sinh + tuổi
+			const smallInputs = document.querySelectorAll('.form-field:nth-child(3) .small');
+			[data.ngaySinh, data.thangSinh, data.namSinh, data.tuoi].forEach((val, idx) => {
+				if (smallInputs[idx]) {
+					smallInputs[idx].value = val;
+					smallInputs[idx].style.fontWeight = "bold";
+					smallInputs[idx].style.fontSize = "16px";
+				}
+			});
+
+			// 4. Số CMND
+			const cmnd = document.querySelector('.form-field:nth-child(4) input');
+			cmnd.value = data.soCMND;
+			cmnd.style.fontWeight = "bold";
+			cmnd.style.fontSize = "16px";
+
+			// 5. Cấp ngày / tại
+			const capNgayInputs = document.querySelectorAll('.form-field:nth-child(5) .small');
+			[data.capNgay.ngay, data.capNgay.thang, data.capNgay.nam].forEach((val, idx) => {
+				capNgayInputs[idx].value = val;
+				capNgayInputs[idx].style.fontWeight = "bold";
+				capNgayInputs[idx].style.fontSize = "16px";
+			});
+
+			const noiCap = document.querySelector('.form-field:nth-child(5) .input-line:not(.small)');
+			noiCap.value = data.noiCap;
+			noiCap.style.fontWeight = "bold";
+			noiCap.style.fontSize = "16px";
+
+			// 6. Chỗ ở hiện tại
+			const choOHienTai = document.querySelector('.form-field:nth-child(6) textarea');
+			choOHienTai.value = data.choOHienTai;
+			choOHienTai.style.fontWeight = "bold";
+			choOHienTai.style.fontSize = "16px";
+
+			// 7. Lý do
+			const lyDo = document.querySelector('.form-field:nth-child(7) input');
+			lyDo.value = data.lyDo;
+			lyDo.style.fontWeight = "bold";
+			lyDo.style.fontSize = "16px";
+
+			// ===== TIỀN SỬ GIA ĐÌNH =====
+			const tsGiaDinh = document.querySelectorAll('input[name="tsGiaDinh"]');
+			tsGiaDinh.forEach(cb => cb.checked = false);
+			if (data.tienSuGiaDinh) {
+				const cb = [...tsGiaDinh].find(x =>
+					(data.tienSuGiaDinh.co && x.value === "Co") ||
+					(!data.tienSuGiaDinh.co && x.value === "Khong")
+				);
+				if (cb) cb.checked = true;
+
+				const ghiChu = document.querySelector('.form-field input.input-line.medium');
+				if (ghiChu) {
+					ghiChu.value = data.tienSuGiaDinh.ghiChu || "";
+					ghiChu.style.fontWeight = "bold";
+					ghiChu.style.fontSize = "16px";
+				}
+			}
+
+			// ===== TIỀN SỬ BẢN THÂN =====
+			if (data.tienSuBanThan) {
+				for (let key in data.tienSuBanThan) {
+					const value = data.tienSuBanThan[key]; // "Co" hoặc "Khong"
+					const selector = `input[name="benh_${key}"][value="${value}"]`;
+					const cb = document.querySelector(selector);
+					if (cb) cb.checked = true;
+				}
+			}
+		}
+
+
+		// Gọi thử
+		document.addEventListener("DOMContentLoaded", function () {
+			loadThongTin(thongTin);
+		});
+	</script>
+
+}
+
+
+
+
