@@ -17,6 +17,7 @@
   <ItemGroup>
     <Folder Include="Models\M0302\M0302SoKhamSucKhoeDinhKyTren18T\" />
     <Folder Include="PDFDocuments\P0302\" />
+    <Folder Include="wwwroot\static\" />
   </ItemGroup>
 
 </Project>

@@ -1071,4 +1071,3 @@ wwwroot\dist\lib\webfont\tabler-icons.html
 wwwroot\dist\lib\webfont\tabler-icons.min.css
 wwwroot\dist\lib\webfont\tabler-icons.scss
 wwwroot\favicon.ico
-wwwroot\static\logo.png
