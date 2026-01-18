@@ -138,3 +138,4 @@ D:\Sixos\C0302_HoangThai\C0302_HoangThai\bin\Debug\net8.0\runtimes\win-x86\nativ
 D:\Sixos\C0302_HoangThai\C0302_HoangThai\bin\Debug\net8.0\runtimes\win-x86\native\libwinpthread-1.dll
 D:\Sixos\C0302_HoangThai\C0302_HoangThai\bin\Debug\net8.0\runtimes\win-x86\native\qpdf.dll
 D:\Sixos\C0302_HoangThai\C0302_HoangThai\bin\Debug\net8.0\runtimes\win-x86\native\zlib1.dll
+D:\Sixos\C0302_HoangThai\C0302_HoangThai\obj\Debug\net8.0\C0302_HoangThai.sourcelink.json

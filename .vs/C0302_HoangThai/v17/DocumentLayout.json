@@ -1,92 +1,12 @@
 {
   "Version": 1,
   "WorkspaceRootPath": "D:\\Sixos\\C0302_HoangThai\\",
-  "Documents": [
-    {
-      "AbsoluteMoniker": "D:0:0:{0A30E31B-FB19-4AB4-B654-9EBA606875BB}|C0302_HoangThai\\C0302_HoangThai.csproj|d:\\sixos\\c0302_hoangthai\\c0302_hoangthai\\controllers\\c0302\\c0302sokhamsuckhoedinhkytren18tcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{0A30E31B-FB19-4AB4-B654-9EBA606875BB}|C0302_HoangThai\\C0302_HoangThai.csproj|solutionrelative:c0302_hoangthai\\controllers\\c0302\\c0302sokhamsuckhoedinhkytren18tcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{0A30E31B-FB19-4AB4-B654-9EBA606875BB}|C0302_HoangThai\\C0302_HoangThai.csproj|d:\\sixos\\c0302_hoangthai\\c0302_hoangthai\\views\\shared\\_layout.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
-      "RelativeMoniker": "D:0:0:{0A30E31B-FB19-4AB4-B654-9EBA606875BB}|C0302_HoangThai\\C0302_HoangThai.csproj|solutionrelative:c0302_hoangthai\\views\\shared\\_layout.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{0A30E31B-FB19-4AB4-B654-9EBA606875BB}|C0302_HoangThai\\C0302_HoangThai.csproj|d:\\sixos\\c0302_hoangthai\\c0302_hoangthai\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
-      "RelativeMoniker": "D:0:0:{0A30E31B-FB19-4AB4-B654-9EBA606875BB}|C0302_HoangThai\\C0302_HoangThai.csproj|solutionrelative:c0302_hoangthai\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{0A30E31B-FB19-4AB4-B654-9EBA606875BB}|C0302_HoangThai\\C0302_HoangThai.csproj|d:\\sixos\\c0302_hoangthai\\c0302_hoangthai\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{0A30E31B-FB19-4AB4-B654-9EBA606875BB}|C0302_HoangThai\\C0302_HoangThai.csproj|solutionrelative:c0302_hoangthai\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    }
-  ],
+  "Documents": [],
   "DocumentGroupContainers": [
     {
       "Orientation": 0,
       "VerticalTabListWidth": 256,
-      "DocumentGroups": [
-        {
-          "DockedWidth": 200,
-          "SelectedChildIndex": 0,
-          "Children": [
-            {
-              "$type": "Document",
-              "DocumentIndex": 0,
-              "Title": "C0302SoKhamSucKhoeDinhKyTren18TController.cs",
-              "DocumentMoniker": "D:\\Sixos\\C0302_HoangThai\\C0302_HoangThai\\Controllers\\C0302\\C0302SoKhamSucKhoeDinhKyTren18TController.cs",
-              "RelativeDocumentMoniker": "C0302_HoangThai\\Controllers\\C0302\\C0302SoKhamSucKhoeDinhKyTren18TController.cs",
-              "ToolTip": "D:\\Sixos\\C0302_HoangThai\\C0302_HoangThai\\Controllers\\C0302\\C0302SoKhamSucKhoeDinhKyTren18TController.cs",
-              "RelativeToolTip": "C0302_HoangThai\\Controllers\\C0302\\C0302SoKhamSucKhoeDinhKyTren18TController.cs",
-              "ViewState": "AgIAAA4AAAAAAAAAAAAAwC0AAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-09-25T06:48:17.88Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 2,
-              "Title": "appsettings.json",
-              "DocumentMoniker": "D:\\Sixos\\C0302_HoangThai\\C0302_HoangThai\\appsettings.json",
-              "RelativeDocumentMoniker": "C0302_HoangThai\\appsettings.json",
-              "ToolTip": "D:\\Sixos\\C0302_HoangThai\\C0302_HoangThai\\appsettings.json",
-              "RelativeToolTip": "C0302_HoangThai\\appsettings.json",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA8AAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
-              "WhenOpened": "2025-09-25T06:37:37.691Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 3,
-              "Title": "Program.cs",
-              "DocumentMoniker": "D:\\Sixos\\C0302_HoangThai\\C0302_HoangThai\\Program.cs",
-              "RelativeDocumentMoniker": "C0302_HoangThai\\Program.cs",
-              "ToolTip": "D:\\Sixos\\C0302_HoangThai\\C0302_HoangThai\\Program.cs",
-              "RelativeToolTip": "C0302_HoangThai\\Program.cs",
-              "ViewState": "AgIAACQAAAAAAAAAAADwv0UAAAAKAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-09-25T06:37:26.21Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "_Layout.cshtml",
-              "DocumentMoniker": "D:\\Sixos\\C0302_HoangThai\\C0302_HoangThai\\Views\\Shared\\_Layout.cshtml",
-              "RelativeDocumentMoniker": "C0302_HoangThai\\Views\\Shared\\_Layout.cshtml",
-              "ToolTip": "D:\\Sixos\\C0302_HoangThai\\C0302_HoangThai\\Views\\Shared\\_Layout.cshtml",
-              "RelativeToolTip": "C0302_HoangThai\\Views\\Shared\\_Layout.cshtml",
-              "ViewState": "AgIAACkAAAAAAAAAAADwvzoAAACEAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-09-25T06:36:15.594Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Bookmark",
-              "Name": "ST:0:0:{34e76e81-ee4a-11d0-ae2e-00a0c90fffc3}"
-            }
-          ]
-        }
-      ]
+      "DocumentGroups": []
     }
   ]
 }

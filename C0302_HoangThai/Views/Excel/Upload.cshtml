@@ -1,0 +1,106 @@
+﻿@{
+    ViewData["Title"] = "Tách File Excel";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="mb-3 d-flex gap-2">
+                    <a href="@Url.Action("DownloadZip", "Excel", new { filePath = ViewBag.ZipPath })"
+                       class="btn btn-success btn-lg flex-fill">
+                        <i class="bi bi-download"></i> Tải về tất cả (@ViewBag.TotalFiles file)
+                    </a>
+                    <button type="button" onclick="clearForm()" class="btn btn-secondary btn-lg">
+                        <i class="bi bi-arrow-counterclockwise"></i> Tách file mới
+                    </button>
+                </div>
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0"><i class="bi bi-file-earmark-excel"></i> Tách File Excel</h3>
+                </div>
+                <div class="card-body">
+
+                    @if (ViewBag.Error != null)
+                    {
+                        <div class="alert alert-danger">
+                            <i class="bi bi-exclamation-circle"></i> @ViewBag.Error
+                        </div>
+                    }
+
+                    @if (ViewBag.Success != null)
+                    {
+                        <div class="alert alert-success">
+                            <i class="bi bi-check-circle"></i> @ViewBag.Success
+                        </div>
+
+                        <div class="mb-3">
+                            <a href="@Url.Action("DownloadZip", "Excel", new { filePath = ViewBag.ZipPath })"
+                               class="btn btn-success btn-lg">
+                                <i class="bi bi-download"></i> Tải về tất cả (@ViewBag.TotalFiles file)
+                            </a>
+                        </div>
+
+                        @if (ViewBag.Files != null)
+                        {
+                            <h5>Danh sách file:</h5>
+                            <div class="list-group">
+                                @foreach (var file in ViewBag.Files)
+                                {
+                                    <div class="list-group-item">
+                                        <i class="bi bi-file-earmark-excel text-success"></i>
+                                        <strong>@file.FileName</strong>
+                                        <span class="badge bg-info">@file.RowCount dòng</span>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    }
+
+                    <form method="post" enctype="multipart/form-data" asp-action="Upload" asp-controller="Excel" class="mt-4">
+                        <div class="mb-3">
+                            <label for="excelFile" class="form-label">Chọn file Excel:</label>
+                            <input type="file"
+                                   class="form-control"
+                                   id="excelFile"
+                                   name="excelFile"
+                                   accept=".xlsx,.xls"
+                                   required>
+                            <div class="form-text">Chỉ chấp nhận file .xlsx hoặc .xls</div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary btn-lg w-100">
+                            <i class="bi bi-scissors"></i> Tách File
+                        </button>
+                    </form>
+
+                    <div class="mt-4">
+                        <h6>Hướng dẫn:</h6>
+                        <ul class="small">
+                            <li>File Excel phải có ít nhất 3 cột</li>
+                            <li>Cột đầu tiên sẽ được dùng để phân nhóm</li>
+                            <li>Các dòng có cùng giá trị ở cột đầu sẽ được tách vào 1 file riêng</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function clearForm() {
+            // Reset form
+            document.querySelector('form').reset();
+            document.getElementById('filePreview')?.classList.add('d-none');
+
+            // Xóa các thông báo
+            document.querySelectorAll('.alert').forEach(el => el.remove());
+
+            // Xóa danh sách file
+            document.querySelector('.list-group')?.closest('div').remove();
+            document.querySelector('.mb-3.d-flex')?.remove();
+        }
+    </script>
+}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
