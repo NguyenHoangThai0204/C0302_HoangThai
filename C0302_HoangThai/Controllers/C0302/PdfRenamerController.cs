@@ -202,7 +202,7 @@ namespace C0302_HoangThai.Controllers.C0302
             try
             {
                 using var library = DocLib.Instance;
-                using var docReader = library.GetDocReader(pdfPath, new PageDimensions(2160, 3840)); // Tăng resolution
+                using var docReader = library.GetDocReader(pdfPath, new PageDimensions(2160, 3840));
                 using var pageReader = docReader.GetPageReader(0);
 
                 var width = pageReader.GetPageWidth();
@@ -218,8 +218,6 @@ namespace C0302_HoangThai.Controllers.C0302
                 }
 
                 using var engine = new TesseractEngine(tessDataPath, "eng", EngineMode.Default);
-
-                // WHITELIST - chỉ nhận ký tự hợp lệ
                 engine.SetVariable("tessedit_char_whitelist", "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-/#:.,() ");
 
                 string bestText = "";
@@ -230,7 +228,6 @@ namespace C0302_HoangThai.Controllers.C0302
                 {
                     using Image<Rgba32> image = Image.LoadPixelData<Rgba32>(rawBytes, width, height);
 
-                    // Preprocessing
                     image.Mutate(x =>
                     {
                         if (angle > 0)
@@ -238,7 +235,7 @@ namespace C0302_HoangThai.Controllers.C0302
                             x.Rotate(angle);
                         }
                         x.Grayscale();
-                        x.Contrast(1.2f); // Tăng độ tương phản
+                        x.Contrast(1.2f);
                     });
 
                     using var ms = new MemoryStream();
@@ -259,17 +256,33 @@ namespace C0302_HoangThai.Controllers.C0302
                 }
 
                 debugLogs.Add($"  ✓ Best OCR confidence: {bestConfidence:F2}");
-                debugLogs.Add($"  📄 OCR Text (300 ký tự đầu): {bestText.Substring(0, Math.Min(300, bestText.Length))}");
 
-                return bestText;
+                // ✅ FIX: Kiểm tra bestText trước khi Substring
+                if (!string.IsNullOrEmpty(bestText))
+                {
+                    int previewLength = Math.Min(300, bestText.Length);
+                    debugLogs.Add($"  📄 OCR Text ({previewLength} ký tự đầu): {bestText.Substring(0, previewLength)}");
+                }
+                else
+                {
+                    debugLogs.Add($"  ⚠️ OCR không trích xuất được text nào");
+                }
+
+                return bestText ?? "";
             }
             catch (Exception ex)
             {
                 debugLogs.Add($"  ❌ OCR Error: {ex.Message}");
+
+                // ✅ Log thêm InnerException
+                if (ex.InnerException != null)
+                {
+                    debugLogs.Add($"     Inner: {ex.InnerException.Message}");
+                }
+
                 return "";
             }
         }
-
         // Cập nhật hàm Extract với regex linh hoạt hơn
         private string ExtractDocumentNumber(string text, List<string> debugLogs)
         {
