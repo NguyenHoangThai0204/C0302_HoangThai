@@ -1,0 +1,174 @@
+@{
+    ViewData["Title"] = "Đổi Tên Hàng Loạt PDF";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0"><i class="bi bi-pencil-square"></i> Đổi Tên Hàng Loạt PDF</h3>
+                </div>
+                <div class="card-body">
+
+                    @if (ViewBag.Error != null)
+                    {
+                        <div class="alert alert-danger">
+                            <i class="bi bi-exclamation-circle"></i> @ViewBag.Error
+                        </div>
+                    }
+
+                    @if (ViewBag.Success != null)
+                    {
+                        <div class="alert alert-success">
+                            <i class="bi bi-check-circle"></i> @ViewBag.Success
+                        </div>
+
+                        <div class="mb-3 d-flex gap-2">
+                            <a href="@Url.Action("DownloadZip", "PdfRenamer", new { filePath = ViewBag.ZipPath })"
+                               class="btn btn-success btn-lg flex-fill">
+                                <i class="bi bi-download"></i> Tải về tất cả (@ViewBag.TotalFiles file)
+                            </a>
+                            <a href="@Url.Action("Upload", "PdfRenamer")"
+                               class="btn btn-secondary btn-lg">
+                                <i class="bi bi-arrow-counterclockwise"></i> Đổi tên file mới
+                            </a>
+                        </div>
+
+                        @if (ViewBag.Files != null)
+                        {
+                            <h5>Danh sách file đã đổi tên:</h5>
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover">
+                                    <thead class="table-primary">
+                                        <tr>
+                                            <th width="5%">#</th>
+                                            <th width="40%">Tên gốc</th>
+                                            <th width="10%" class="text-center">→</th>
+                                            <th width="40%">Tên mới</th>
+                                            <th width="5%" class="text-center">
+                                                <i class="bi bi-info-circle" title="Trạng thái"></i>
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @{
+                                            int index = 1;
+                                        }
+                                        @foreach (var file in ViewBag.Files)
+                                        {
+                                            bool isRenamed = !file.ExtractedCode.StartsWith("Unknown");
+                                            <tr class="@(isRenamed ? "" : "table-warning")">
+                                                <td>@index</td>
+                                                <td>
+                                                    <i class="bi bi-file-pdf text-danger"></i>
+                                                    <small class="text-muted">@file.OriginalName</small>
+                                                </td>
+                                                <td class="text-center">
+                                                    <i class="bi bi-arrow-right-circle @(isRenamed ? "text-success" : "text-warning")"></i>
+                                                </td>
+                                                <td>
+                                                    <i class="bi bi-file-pdf-fill text-danger"></i>
+                                                    <strong class="@(isRenamed ? "text-success" : "text-warning")">@file.NewName</strong>
+                                                </td>
+                                                <td class="text-center">
+                                                    @if (isRenamed)
+                                                    {
+                                                        <i class="bi bi-check-circle-fill text-success" title="Đã nhận diện mã"></i>
+                                                    }
+                                                    else
+                                                    {
+                                                        <i class="bi bi-exclamation-triangle-fill text-warning" title="Không đọc được mã"></i>
+                                                    }
+                                                </td>
+                                            </tr>
+                                            index++;
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+
+                        @if (ViewBag.DebugLogs != null)
+                        {
+                            <div class="mt-4">
+                                <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#debugLogs">
+                                    <i class="bi bi-terminal"></i> Xem Debug Log
+                                </button>
+                                <div class="collapse mt-2" id="debugLogs">
+                                    <div class="card">
+                                        <div class="card-body" style="max-height:400px;overflow:auto;font-family:monospace;font-size:12px;background:#f8f9fa;">
+                                            @foreach (var log in ViewBag.DebugLogs)
+                                            {
+                                                <div>@log</div>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    }
+
+                    <form method="post" enctype="multipart/form-data" asp-action="ProcessFiles" asp-controller="PdfRenamer" class="mt-4">
+                       
+                        <!-- Option 1: Multiple PDF Files -->
+                        <div class="mb-4">
+                            <label for="pdfFiles" class="form-label">
+                                <i class="bi bi-files"></i> Chọn nhiều file PDF:
+                            </label>
+                            <input type="file"
+                                   class="form-control"
+                                   id="pdfFiles"
+                                   name="pdfFiles"
+                                   accept=".pdf"
+                                   multiple>
+                            <div class="form-text">Giữ phím Ctrl (hoặc Cmd trên Mac) và click để chọn nhiều file</div>
+                        </div>
+
+                        <!-- Option 2: ZIP File -->
+                        <div class="mb-4">
+                            <label for="zipFile" class="form-label">
+                                <i class="bi bi-file-zip"></i> Chọn file ZIP:
+                            </label>
+                            <input type="file"
+                                   class="form-control"
+                                   id="zipFile"
+                                   name="zipFile"
+                                   accept=".zip">
+                            <div class="form-text">File ZIP chứa các file PDF đã tách sẵn</div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary btn-lg w-100">
+                            <i class="bi bi-pencil-square"></i> Đổi Tên Tất Cả File
+                        </button>
+                    </form>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+
+<script>
+    // Hiển thị số file đã chọn
+    document.getElementById('pdfFiles').addEventListener('change', function(e) {
+        const count = e.target.files.length;
+        if (count > 0) {
+            document.getElementById('zipFile').value = '';
+            if (count === 1) {
+                alert('Đã chọn 1 file PDF');
+            } else {
+                alert(`Đã chọn ${count} file PDF`);
+            }
+        }
+    });
+
+    document.getElementById('zipFile').addEventListener('change', function(e) {
+        if (e.target.files.length > 0) {
+            document.getElementById('pdfFiles').value = '';
+            alert('Đã chọn file ZIP');
+        }
+    });
+</script>

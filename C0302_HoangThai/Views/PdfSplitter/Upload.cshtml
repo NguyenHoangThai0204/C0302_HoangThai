@@ -1,0 +1,102 @@
+﻿@{
+    ViewData["Title"] = "Tách File PDF";
+}
+@* @if (ViewBag.DebugLogs != null)
+{
+    <div class="mt-4">
+        <h5>Debug Log:</h5>
+        <div class="card">
+            <div class="card-body"
+                 style="max-height:400px;overflow:auto;
+                            font-family:monospace;font-size:12px">
+                @foreach (var log in ViewBag.DebugLogs)
+                {
+                    <div>@log</div>
+                }
+            </div>
+        </div>
+    </div>
+} *@
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-danger text-white">
+                    <h3 class="mb-0"><i class="bi bi-file-pdf"></i> Tách File PDF</h3>
+                </div>
+                <div class="card-body">
+
+                    @if (ViewBag.Error != null)
+                    {
+                        <div class="alert alert-danger">
+                            <i class="bi bi-exclamation-circle"></i> @ViewBag.Error
+                        </div>
+                    }
+
+                    @if (ViewBag.Success != null)
+                    {
+                        <div class="alert alert-success">
+                            <i class="bi bi-check-circle"></i> @ViewBag.Success
+                        </div>
+
+                        <div class="mb-3 d-flex gap-2">
+                            <a href="@Url.Action("DownloadZip", "PdfSplitter", new { filePath = ViewBag.ZipPath })"
+                               class="btn btn-success btn-lg flex-fill">
+                                <i class="bi bi-download"></i> Tải về tất cả (@ViewBag.TotalFiles file)
+                            </a>
+                            <a href="@Url.Action("Upload", "PdfSplitter")"
+                               class="btn btn-secondary btn-lg">
+                                <i class="bi bi-arrow-counterclockwise"></i> Tách file mới
+                            </a>
+                        </div>
+
+                        @if (ViewBag.Files != null)
+                        {
+                            <h5>Danh sách file:</h5>
+                            <div class="list-group mb-3">
+                                @foreach (var file in ViewBag.Files)
+                                {
+                                    <div class="list-group-item">
+                                        <i class="bi bi-file-pdf text-danger"></i>
+                                        <strong>@file.FileName</strong>
+                                        <span class="badge bg-secondary">Trang @file.PageNumber</span>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    }
+
+                    <form method="post" enctype="multipart/form-data" asp-action="Upload" asp-controller="PdfSplitter" class="mt-4">
+                        <div class="mb-3">
+                            <label for="pdfFile" class="form-label">Chọn file PDF:</label>
+                            <input type="file"
+                                   class="form-control"
+                                   id="pdfFile"
+                                   name="pdfFile"
+                                   accept=".pdf"
+                                   required>
+                            <div class="form-text">Chỉ chấp nhận file .pdf</div>
+                        </div>
+
+                        <button type="submit" class="btn btn-danger btn-lg w-100">
+                            <i class="bi bi-scissors"></i> Tách File PDF
+                        </button>
+                    </form>
+
+                    <div class="mt-4">
+                        <h6>Hướng dẫn:</h6>
+                        <ul class="small">
+                            <li>Upload file PDF có nhiều trang (scan)</li>
+                            <li>Mỗi trang sẽ được tách thành 1 file riêng</li>
+                            <li>Tên file sẽ được đặt theo số Invoice trên mỗi trang (ITA-...)</li>
+                            <li>Nếu không đọc được số Invoice, tên file sẽ là "Page_001"</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
