@@ -32,7 +32,7 @@ namespace C0302_HoangThai.Controllers.C0302
             try
             {
                 var tempFolder = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-                Directory.CreateDirectory(tempFolder);
+                    Directory.CreateDirectory(tempFolder);
 
                 var extractedFolder = Path.Combine(tempFolder, "extracted");
                 Directory.CreateDirectory(extractedFolder);
