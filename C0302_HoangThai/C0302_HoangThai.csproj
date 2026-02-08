@@ -31,6 +31,8 @@
     <PackageReference Include="PdfPig" Version="0.1.13" />
     <PackageReference Include="PDFsharp" Version="6.2.4" />
     <PackageReference Include="QuestPDF" Version="2025.12.3" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
+    <PackageReference Include="SixLabors.ImageSharp.Drawing" Version="2.1.7" />
     <PackageReference Include="SkiaSharp" Version="3.119.1" />
     <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="3.119.1" />
     <PackageReference Include="System.Drawing.Common" Version="10.0.2" />
