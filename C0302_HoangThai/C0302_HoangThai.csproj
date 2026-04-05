@@ -7,6 +7,17 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Models\M0302\M0302SoKhamSucKhoeDinhKyTren18T\**" />
+    <Compile Remove="PDFDocuments\**" />
+    <Content Remove="Models\M0302\M0302SoKhamSucKhoeDinhKyTren18T\**" />
+    <Content Remove="PDFDocuments\**" />
+    <EmbeddedResource Remove="Models\M0302\M0302SoKhamSucKhoeDinhKyTren18T\**" />
+    <EmbeddedResource Remove="PDFDocuments\**" />
+    <None Remove="Models\M0302\M0302SoKhamSucKhoeDinhKyTren18T\**" />
+    <None Remove="PDFDocuments\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Content Include="tessdata\eng.traineddata">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
@@ -46,8 +57,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Models\M0302\M0302SoKhamSucKhoeDinhKyTren18T\" />
-    <Folder Include="PDFDocuments\P0302\" />
     <Folder Include="wwwroot\static\" />
   </ItemGroup>
 
