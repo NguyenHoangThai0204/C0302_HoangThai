@@ -226,51 +226,82 @@ namespace C0302_HoangThai.Controllers.C0302
         }
 
         // ── Đặt tên file theo danh sách invoice ──
-        // ITA-0027832, ITA-0027833          → ITA-0027832-33
-        // VIE-0008000, VIE-0008001          → VIE-0008000-01
-        // ITA-0027999, VIE-0008000, VIE-0008001 → ITA-0027999-8000-8001
+        // Cùng prefix:   ITA-0028244, ITA-0028245, ITA-0028246  → ITA-0028244-45-46
+        // Khác prefix:   ITA-0028244, ITA-0028245, SLO-0028246  → ITA-0028244-45-SLO-0028246
+        // Nhiều prefix:  ITA-0028283, ITA-0028284, VIE-0005213  → ITA-0028283-84-VIE-0005213
         private string BuildFileName(List<string> invoices)
         {
             if (invoices.Count == 0) return "Unknown";
             if (invoices.Count == 1) return invoices[0];
 
-            (string prefix, string num) Parse(string inv)
+            (string Prefix, string Num) Parse(string inv)
             {
                 var m = Regex.Match(inv, @"^([A-Z]+)-(\d+)$");
                 return m.Success ? (m.Groups[1].Value, m.Groups[2].Value) : (inv, "");
             }
 
             var parsed = invoices.Select(Parse).ToList();
-            var (firstPrefix, firstNum) = parsed[0];
-            string result = invoices[0];
 
-            for (int i = 1; i < parsed.Count; i++)
+            // Gom nhóm theo prefix, giữ thứ tự xuất hiện đầu tiên
+            var prefixOrder = new List<string>();
+            var prefixGroups = new Dictionary<string, List<(string Inv, string Num)>>();
+
+            for (int i = 0; i < invoices.Count; i++)
             {
                 var (prefix, num) = parsed[i];
-                if (string.IsNullOrEmpty(num)) { result += $"-{invoices[i]}"; continue; }
-
-                if (prefix == firstPrefix)
+                if (!prefixGroups.ContainsKey(prefix))
                 {
-                    // Cùng prefix → tìm suffix khác (tối thiểu 2 ký tự)
-                    int diffStart = 0;
-                    for (int j = 0; j < Math.Min(firstNum.Length, num.Length); j++)
-                    {
-                        if (firstNum[j] == num[j]) diffStart = j + 1;
-                        else break;
-                    }
-                    string suffix = num[diffStart..];
-                    if (suffix.Length < 2) suffix = num[Math.Max(0, diffStart - 1)..];
-                    if (suffix.Length < 2) suffix = num[^2..];
-                    result += $"-{suffix}";
+                    prefixOrder.Add(prefix);
+                    prefixGroups[prefix] = new List<(string, string)>();
+                }
+                prefixGroups[prefix].Add((invoices[i], num));
+            }
+
+            var parts = new List<string>();
+
+            foreach (var prefix in prefixOrder)
+            {
+                var group = prefixGroups[prefix];
+
+                if (group.Count == 1)
+                {
+                    parts.Add(group[0].Inv);
                 }
                 else
                 {
-                    // Khác prefix → bỏ leading zeros
-                    result += $"-{long.Parse(num)}";
+                    // Nhiều invoice cùng prefix → rút gọn suffix giống nhau
+                    var nums = group.Select(g => g.Num).ToList();
+                    string firstNum = nums[0];
+
+                    // Tìm độ dài phần chung (common prefix) giữa TẤT CẢ các số
+                    int commonLen = firstNum.Length;
+                    foreach (var num in nums.Skip(1))
+                    {
+                        int matchLen = 0;
+                        for (int j = 0; j < Math.Min(commonLen, num.Length); j++)
+                        {
+                            if (firstNum[j] == num[j]) matchLen = j + 1;
+                            else break;
+                        }
+                        commonLen = matchLen;
+                    }
+
+                    // Xây dựng: PREFIX-FIRSTNUM-suffix2-suffix3...
+                    var sb = new System.Text.StringBuilder($"{prefix}-{firstNum}");
+                    foreach (var num in nums.Skip(1))
+                    {
+                        string suffix = num[commonLen..];
+                        // Đảm bảo suffix tối thiểu 2 ký tự để tránh nhầm lẫn
+                        if (suffix.Length < 2) suffix = num[Math.Max(0, commonLen - 1)..];
+                        if (suffix.Length < 2) suffix = num[^2..];
+                        sb.Append($"-{suffix}");
+                    }
+                    parts.Add(sb.ToString());
                 }
             }
 
-            return result;
+            // Nối các nhóm prefix lại với nhau
+            return string.Join("-", parts);
         }
 
         private string SanitizeFileName(string fileName)
