@@ -58,6 +58,7 @@
 
   <ItemGroup>
     <Folder Include="wwwroot\static\" />
+    <Folder Include="wwwroot\uploads\" />
   </ItemGroup>
     <ItemGroup>
       <None Update="tessdata\**">
