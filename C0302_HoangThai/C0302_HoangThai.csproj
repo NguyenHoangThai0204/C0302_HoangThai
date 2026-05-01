@@ -59,5 +59,9 @@
   <ItemGroup>
     <Folder Include="wwwroot\static\" />
   </ItemGroup>
-
+    <ItemGroup>
+      <None Update="tessdata\**">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+    </ItemGroup>
 </Project>
