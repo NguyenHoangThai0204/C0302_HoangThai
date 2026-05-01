@@ -3,6 +3,12 @@ using Microsoft.AspNetCore.Mvc;
 using iText.Kernel.Pdf;
 using iText.Kernel.Pdf.Canvas.Parser;
 using iText.Kernel.Pdf.Canvas.Parser.Listener;
+using ClosedXML.Excel;
+using Docnet.Core;
+using Docnet.Core.Models;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
 using Tesseract;
 using System;
 using System.Collections.Generic;
@@ -10,953 +16,412 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Text.RegularExpressions;
-using Docnet.Core;
-using Docnet.Core.Models;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing;
 
 namespace C0302_HoangThai.Controllers.C0302
 {
     public class PdfRenamer3PageController : Controller
     {
-        // Prefix hợp lệ theo bạn cung cấp
-        private static readonly string[] AllowedPrefixes = new[]
-        {
-            "SIN","SLO","EUG","AUS","BRA","ITA","VN","VIE","PAN","CON","RMA","UNK","FRA"
-        };
+        private static readonly string TessDataPath =
+            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "tessdata");
 
-        // Regex group: SIN|SLO|...
-        private static readonly string AllowedPrefixPattern =
-            @"(?:SIN|SLO|EUG|AUS|BRA|ITA|VN|VIE|PAN|CON|RMA|UNK|FRA)";
-
-        // digits tối thiểu để tránh bắt bị cụt (ITA-00277)
-        private const int MinDigits = 6;
+        private static readonly bool HasTesseract =
+            Directory.Exists(TessDataPath) &&
+            System.IO.File.Exists(Path.Combine(TessDataPath, "eng.traineddata"));
 
         [HttpGet]
-        public IActionResult Upload()
-        {
-            return View();
-        }
+        public IActionResult Upload() => View();
 
+        // ════════════════════════════════════════════════════════════
+        //  BƯỚC 1: PDF/ZIP → Excel mapping
+        // ════════════════════════════════════════════════════════════
         [HttpPost]
-        public IActionResult Upload(List<IFormFile> pdfFiles, IFormFile zipFile)
+        [RequestSizeLimit(500_000_000)]
+        [RequestFormLimits(MultipartBodyLengthLimit = 500_000_000)]
+        public IActionResult Step1_ExportExcel(List<IFormFile> pdfFiles, IFormFile zipFile)
         {
-            var debugLogs = new List<string>();
-            var fileInfos = new List<PdfFileInfo>();
+            var tempFolder = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+            Directory.CreateDirectory(tempFolder);
 
             try
             {
-                var tempFolder = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-                Directory.CreateDirectory(tempFolder);
+                var pdfFolder = Path.Combine(tempFolder, "pdfs");
+                Directory.CreateDirectory(pdfFolder);
 
-                var extractedFolder = Path.Combine(tempFolder, "extracted");
-                Directory.CreateDirectory(extractedFolder);
+                var allPdfs = new List<string>();
 
-                // Xử lý ZIP file nếu có
                 if (zipFile != null && zipFile.Length > 0)
                 {
-                    debugLogs.Add($"=== XỬ LÝ ZIP FILE: {zipFile.FileName} ===");
-
-                    var zipPath = Path.Combine(tempFolder, zipFile.FileName);
-                    using (var stream = new FileStream(zipPath, FileMode.Create))
-                    {
-                        zipFile.CopyTo(stream);
-                    }
-
-                    ZipFile.ExtractToDirectory(zipPath, extractedFolder);
-                    debugLogs.Add($"✓ Giải nén thành công");
-
-                    var pdfFilesInZip = Directory.GetFiles(extractedFolder, "*.pdf", SearchOption.AllDirectories);
-                    debugLogs.Add($"✓ Tìm thấy {pdfFilesInZip.Length} file PDF trong ZIP");
-
-                    foreach (var pdfPath in pdfFilesInZip)
-                    {
-                        ProcessSinglePdf(pdfPath, tempFolder, fileInfos, debugLogs);
-                    }
+                    var zipPath = Path.Combine(tempFolder, "input.zip");
+                    using (var fs = new FileStream(zipPath, FileMode.Create, FileAccess.Write, FileShare.None, 65536))
+                        zipFile.CopyTo(fs);
+                    ZipFile.ExtractToDirectory(zipPath, pdfFolder, overwriteFiles: true);
+                    allPdfs.AddRange(Directory.GetFiles(pdfFolder, "*.pdf", SearchOption.AllDirectories));
                 }
-                // Xử lý multiple PDF files
-                else if (pdfFiles != null && pdfFiles.Count > 0)
+
+                if (pdfFiles != null)
                 {
-                    debugLogs.Add($"=== XỬ LÝ {pdfFiles.Count} FILE PDF ===");
-
-                    foreach (var pdfFile in pdfFiles)
+                    foreach (var f in pdfFiles)
                     {
-                        if (pdfFile.Length == 0 || !pdfFile.FileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
-                        {
-                            debugLogs.Add($"⊘ Bỏ qua: {pdfFile.FileName} (không phải PDF)");
-                            continue;
-                        }
-
-                        var tempPdfPath = Path.Combine(extractedFolder, pdfFile.FileName);
-                        using (var stream = new FileStream(tempPdfPath, FileMode.Create))
-                        {
-                            pdfFile.CopyTo(stream);
-                        }
-
-                        ProcessSinglePdf(tempPdfPath, tempFolder, fileInfos, debugLogs);
+                        if (f == null || f.Length == 0) continue;
+                        if (!f.FileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)) continue;
+                        string safeName = Path.GetFileName(f.FileName);
+                        string dest = GetUniquePath(pdfFolder, safeName);
+                        using (var fs = new FileStream(dest, FileMode.Create, FileAccess.Write, FileShare.None, 65536))
+                            f.CopyTo(fs);
+                        allPdfs.Add(dest);
                     }
                 }
-                else
+
+                if (allPdfs.Count == 0)
+                    return BadRequest("Không tìm thấy file PDF nào.");
+
+                // ✅ Chỉ 2 cột — bỏ Ghi chú
+                var rows = new List<(string Name, string SoToKhai)>();
+
+                foreach (var pdfPath in allPdfs)
                 {
-                    ViewBag.Error = "Vui lòng chọn file PDF hoặc file ZIP";
-                    return View("Upload");
+                    string name = Path.GetFileName(pdfPath);
+                    try
+                    {
+                        string soToKhai = ExtractSoToKhai(pdfPath);
+                        rows.Add((name, soToKhai));
+                    }
+                    catch
+                    {
+                        rows.Add((name, "Unknown"));
+                    }
+                    finally
+                    {
+                        GC.Collect(0, GCCollectionMode.Optimized);
+                    }
                 }
 
-                // Lưu debug log
-                var logPath = Path.Combine(tempFolder, "rename_log.txt");
-                System.IO.File.WriteAllLines(logPath, debugLogs);
+                string excelPath = Path.Combine(tempFolder, "Mapping.xlsx");
+                BuildExcel(rows, excelPath);
 
-                // Tạo ZIP output
-                var outputZipPath = Path.Combine(Path.GetTempPath(), $"Renamed_PDFs_{DateTime.Now:yyyyMMddHHmmss}.zip");
-                ZipFile.CreateFromDirectory(tempFolder, outputZipPath);
-
-                try { Directory.Delete(extractedFolder, true); } catch { }
-
-                ViewBag.Success = $"Đã đổi tên thành công {fileInfos.Count} file PDF!";
-                ViewBag.Files = fileInfos;
-                ViewBag.ZipPath = outputZipPath;
-                ViewBag.TotalFiles = fileInfos.Count;
-                ViewBag.DebugLogs = debugLogs;
-
-                return View("Upload");
+                // ✅ Không dùng cookie — JS fetch+blob tự xử lý
+                string dlName = $"Mapping_SoToKhai_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+                return PhysicalFile(excelPath,
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    dlName);
             }
             catch (Exception ex)
             {
-                ViewBag.Error = $"Lỗi xử lý: {ex.Message}\n{ex.StackTrace}";
-                ViewBag.DebugLogs = debugLogs;
-                return View("Upload");
+                try { Directory.Delete(tempFolder, true); } catch { }
+                return BadRequest($"Lỗi xử lý: {ex.Message}");
             }
         }
 
-        [HttpGet]
-        public IActionResult DownloadZip(string filePath)
+        // ════════════════════════════════════════════════════════════
+        //  BƯỚC 2: ZIP PDF + Excel → ZIP PDF đổi tên
+        // ════════════════════════════════════════════════════════════
+        [HttpPost]
+        [RequestSizeLimit(500_000_000)]
+        [RequestFormLimits(MultipartBodyLengthLimit = 500_000_000)]
+        public IActionResult Step2_RenameFiles(IFormFile pdfZip, IFormFile mappingExcel)
         {
-            if (string.IsNullOrEmpty(filePath) || !System.IO.File.Exists(filePath))
-                return NotFound();
+            var tempFolder = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+            Directory.CreateDirectory(tempFolder);
 
-            var memory = new MemoryStream();
-            using (var stream = new FileStream(filePath, FileMode.Open))
-            {
-                stream.CopyTo(memory);
-            }
-            memory.Position = 0;
-
-            return File(memory, "application/zip", Path.GetFileName(filePath));
-        }
-
-        // ── Xử lý 1 file PDF: đọc tên → copy với tên mới (giữ nguyên toàn bộ trang) ──
-        private void ProcessSinglePdf(string inputPath, string outputFolder, List<PdfFileInfo> fileInfos, List<string> debugLogs)
-        {
             try
             {
-                string originalName = Path.GetFileName(inputPath);
-                debugLogs.Add($"\n--- Xử lý: {originalName} ---");
+                if (pdfZip == null || pdfZip.Length == 0)
+                    return BadRequest("Thiếu file ZIP chứa PDF.");
+                if (mappingExcel == null || mappingExcel.Length == 0)
+                    return BadRequest("Thiếu file Excel mapping.");
 
-                string newFileName = ExtractFileNameFromPdf(inputPath, debugLogs);
+                var pdfFolder = Path.Combine(tempFolder, "pdfs");
+                Directory.CreateDirectory(pdfFolder);
+                var zipPath = Path.Combine(tempFolder, "input.zip");
+                using (var fs = new FileStream(zipPath, FileMode.Create)) pdfZip.CopyTo(fs);
+                ZipFile.ExtractToDirectory(zipPath, pdfFolder, overwriteFiles: true);
 
-                string outputPath = Path.Combine(outputFolder, $"{newFileName}.pdf");
-                int counter = 1;
-                while (System.IO.File.Exists(outputPath))
+                var excelPath = Path.Combine(tempFolder, "mapping.xlsx");
+                using (var fs = new FileStream(excelPath, FileMode.Create)) mappingExcel.CopyTo(fs);
+                var mapping = ReadMappingExcel(excelPath);
+
+                var outFolder = Path.Combine(tempFolder, "renamed");
+                Directory.CreateDirectory(outFolder);
+
+                foreach (var kvp in mapping)
                 {
-                    outputPath = Path.Combine(outputFolder, $"{newFileName}_{counter}.pdf");
-                    counter++;
+                    string origName = kvp.Key;
+                    string tenMoi = kvp.Value?.Trim();
+
+                    var srcPath = Directory.GetFiles(pdfFolder, origName, SearchOption.AllDirectories)
+                                           .FirstOrDefault();
+                    if (srcPath == null) continue;
+
+                    string finalName = string.IsNullOrWhiteSpace(tenMoi)
+                        ? Path.GetFileNameWithoutExtension(origName)
+                        : tenMoi;
+
+                    string dest = GetUniquePath(outFolder, $"{SanitizeFileName(finalName)}.pdf");
+                    System.IO.File.Copy(srcPath, dest, true);
                 }
 
-                // Copy nguyên file — chỉ đổi tên, không tách trang
-                System.IO.File.Copy(inputPath, outputPath, true);
+                string resultZip = Path.Combine(tempFolder, "renamed.zip");
+                ZipFile.CreateFromDirectory(outFolder, resultZip);
 
-                fileInfos.Add(new PdfFileInfo
-                {
-                    OriginalName = originalName,
-                    FileName = Path.GetFileName(outputPath),
-                    FilePath = outputPath,
-                    ExtractedCode = newFileName
-                });
-
-                debugLogs.Add($"✓ Đổi tên: {originalName} → {Path.GetFileName(outputPath)}");
+                // ✅ Không dùng cookie
+                string dlName = $"Renamed_PDFs_{DateTime.Now:yyyyMMdd_HHmmss}.zip";
+                return PhysicalFile(resultZip, "application/zip", dlName);
             }
             catch (Exception ex)
             {
-                debugLogs.Add($"❌ Lỗi xử lý {Path.GetFileName(inputPath)}: {ex.Message}");
+                try { Directory.Delete(tempFolder, true); } catch { }
+                return BadRequest($"Lỗi: {ex.Message}");
             }
         }
 
-        // ── Đọc trang 1 của PDF → ưu tiên text layer, fallback OCR ──
-        private string ExtractFileNameFromPdf(string pdfPath, List<string> debugLogs)
+        // ════════════════════════════════════════════════════════════
+        //  CORE: Đọc Số tờ khai từ PDF scan ảnh
+        // ════════════════════════════════════════════════════════════
+        private string ExtractSoToKhai(string pdfPath)
         {
+            // ── 1. Thử text layer trước (PDF có text) ─────────────────
             try
             {
-                using (var reader = new iText.Kernel.Pdf.PdfReader(pdfPath))
-                using (var pdfDoc = new iText.Kernel.Pdf.PdfDocument(reader))
+                using var reader = new iText.Kernel.Pdf.PdfReader(pdfPath);
+                using var pdfDoc = new iText.Kernel.Pdf.PdfDocument(reader);
+                string text = PdfTextExtractor.GetTextFromPage(
+                    pdfDoc.GetPage(1), new SimpleTextExtractionStrategy()) ?? "";
+
+                if (Regex.Replace(text, @"\s", "").Length >= 20)
                 {
-                    var page = pdfDoc.GetPage(1);
-                    var strategy = new SimpleTextExtractionStrategy();
-                    string pageText = PdfTextExtractor.GetTextFromPage(page, strategy);
-
-                    string meaningfulText = Regex.Replace(pageText ?? "", @"[\s\x00-\x1f\x7f]", "");
-                    debugLogs.Add($"  Text layer: {(pageText?.Length ?? 0)} raw, {meaningfulText.Length} có nghĩa");
-
-                    if (meaningfulText.Length >= 10)
-                    {
-                        debugLogs.Add($"  ✓ Đọc được text layer");
-                        debugLogs.Add($"  Text (500 ký tự đầu): {pageText.Substring(0, Math.Min(500, pageText.Length))}");
-
-                        string fileName = ExtractDocumentNumber(pageText, debugLogs);
-                        if (!fileName.StartsWith("Unknown", StringComparison.OrdinalIgnoreCase))
-                            return fileName;
-                    }
+                    string found = FindSoToKhaiInText(text);
+                    if (found != null) return found;
                 }
-
-                debugLogs.Add($"  ⟳ Sử dụng OCR...");
-                string ocrText = PerformOCR(pdfPath, debugLogs);
-
-                if (!string.IsNullOrWhiteSpace(ocrText))
-                    return ExtractDocumentNumber(ocrText, debugLogs);
-
-                return "Unknown";
             }
-            catch (Exception ex)
-            {
-                debugLogs.Add($"  ❌ Lỗi đọc PDF: {ex.Message}");
-                return "Unknown";
-            }
-        }
+            catch { }
 
-        // OCR nhiều vùng (đỡ bị lệch mẫu scan) rồi ghép text lại
-        private string PerformOCR(string pdfPath, List<string> debugLogs)
-        {
+            // ── 2. OCR cho PDF scan ảnh ───────────────────────────────
+            if (!HasTesseract) return "Unknown";
+
             try
             {
-                // Render ở ~400 DPI để Tesseract đọc chính xác hơn
-                using (var library = DocLib.Instance)
-                using (var docReader = library.GetDocReader(pdfPath, new PageDimensions(3307, 4677))) // ~400dpi A4
-                using (var pageReader = docReader.GetPageReader(0))
+                using var library = DocLib.Instance;
+                // Render 250 DPI để OCR rõ hơn
+                using var docReader = library.GetDocReader(pdfPath, new PageDimensions(2067, 2924));
+                using var pgReader = docReader.GetPageReader(0);
+
+                int w = pgReader.GetPageWidth();
+                int h = pgReader.GetPageHeight();
+                byte[] raw = pgReader.GetImage();
+
+                // ✅ Crop top 25% — đủ bắt dòng "Số tờ khai" kể cả layout có tiêu đề lớn
+                int cropH = (int)(h * 0.25f);
+
+                byte[] png;
+                using (var img = SixLabors.ImageSharp.Image.LoadPixelData<Rgba32>(raw, w, h))
                 {
-                    var width = pageReader.GetPageWidth();
-                    var height = pageReader.GetPageHeight();
-                    var rawBytes = pageReader.GetImage();
+                    img.Mutate(ctx => ctx
+                        .Crop(new Rectangle(0, 0, w, Math.Max(1, cropH)))
+                        .Resize(w * 2, cropH * 2)   // phóng 2x cho OCR chính xác
+                        .Grayscale()
+                        .BinaryThreshold(0.50f));    // threshold 0.50 cho scan màu hồng
 
-                    debugLogs.Add($"  ✓ Render {width}x{height}");
+                    using var ms = new MemoryStream();
+                    img.SaveAsPng(ms);
+                    png = ms.ToArray();
+                }
 
-                    // OCR 3 vùng: (45-65), (60-80), (75-100)
-                    var regions = new List<(float y0, float y1, string name)>
-                    {
-                        (0.45f, 0.65f, "mid1"),
-                        (0.60f, 0.80f, "mid2"),
-                        (0.75f, 1.00f, "bottom"),
-                    };
+                // ✅ Dùng "vie" (tiếng Việt) thay "eng" để OCR label tiếng Việt đúng hơn
+                // Nếu chưa có vie.traineddata thì fallback về eng
+                string lang = System.IO.File.Exists(Path.Combine(TessDataPath, "vie.traineddata"))
+                    ? "vie+eng"
+                    : "eng";
 
-                    var texts = new List<string>();
+                using var engine = new TesseractEngine(TessDataPath, lang, EngineMode.LstmOnly);
 
-                    foreach (var r in regions)
-                    {
-                        int cropStartY = (int)(height * r.y0);
-                        int cropEndY = (int)(height * r.y1);
-                        if (cropEndY <= cropStartY) cropEndY = cropStartY + 1;
-                        int cropH = cropEndY - cropStartY;
+                // Chỉ cho phép ký tự số + chữ cái + dấu phổ biến để OCR nhanh và sạch hơn
+                engine.SetVariable("tessedit_char_whitelist",
+                    "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz :-./\n");
 
-                        debugLogs.Add($"  ✓ Crop({r.name}) Y={cropStartY}→{cropEndY} (H={cropH})");
+                using var pix = Pix.LoadFromMemory(png);
+                using var pg = engine.Process(pix, PageSegMode.Auto);
 
-                        byte[] pngBytes;
-                        using (var fullImg = SixLabors.ImageSharp.Image.LoadPixelData<Rgba32>(rawBytes, width, height))
-                        {
-                            fullImg.Mutate(ctx => ctx
-                                .Crop(new SixLabors.ImageSharp.Rectangle(0, cropStartY, width, cropH))
-                                .Resize(width * 2, cropH * 2)
-                                .Grayscale()
-                                .BinaryThreshold(0.60f)); // ~153/255
+                string ocrText = pg.GetText() ?? "";
+                string result = FindSoToKhaiInText(ocrText);
+                return result ?? "Unknown";
+            }
+            catch
+            {
+                return "Unknown";
+            }
+        }
 
-                            using (var ms = new MemoryStream())
-                            {
-                                fullImg.SaveAsPng(ms);
-                                pngBytes = ms.ToArray();
-                            }
-                        }
+        // ════════════════════════════════════════════════════════════
+        //  Tìm Số tờ khai trong text (text layer hoặc OCR)
+        //
+        //  Tờ khai VN chuẩn:
+        //    "Số tờ khai   308278270660   Số tờ khai đầu tiên"
+        //  Số tờ khai = đúng 12 chữ số liên tiếp
+        //
+        //  Chiến lược:
+        //   A. Tìm theo từng dòng chứa label "Số tờ khai" → lấy số 12 chữ số
+        //      trên chính dòng đó (tránh bắt nhầm số ở dòng khác)
+        //   B. Regex multiline label + số kế tiếp
+        //   C. Standalone đúng 12 chữ số (KHÔNG dùng 10-13 để tránh nhầm)
+        // ════════════════════════════════════════════════════════════
+        private string FindSoToKhaiInText(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return null;
 
-                        var tessDataPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "tessdata");
-                        if (!Directory.Exists(tessDataPath) ||
-                            !System.IO.File.Exists(Path.Combine(tessDataPath, "eng.traineddata")))
-                        {
-                            debugLogs.Add($"  ❌ Thiếu tessdata/eng.traineddata");
-                            return "";
-                        }
+            // ── Chiến lược A: Tìm theo từng dòng ────────────────────
+            // iText và OCR thường xuất mỗi ô thành 1 dòng riêng
+            foreach (var rawLine in text.Split('\n'))
+            {
+                string line = rawLine.Trim();
+                if (line.Length < 3) continue;
 
-                        using (var engine = new TesseractEngine(tessDataPath, "eng", EngineMode.Default))
-                        using (var pix = Pix.LoadFromMemory(pngBytes))
-                        using (var pg = engine.Process(pix, PageSegMode.Auto))
-                        {
-                            string text = pg.GetText() ?? "";
-                            float conf = pg.GetMeanConfidence();
-                            debugLogs.Add($"  OCR({r.name}) confidence: {conf:F2}");
+                string lineUp = Regex.Replace(line.ToUpperInvariant(), @"[ \t]+", " ");
 
-                            if (!string.IsNullOrWhiteSpace(text))
-                                debugLogs.Add($"  📄 OCR({r.name}) preview: {text.Replace("\n", " ")[..Math.Min(220, text.Length)]}");
+                // Dòng phải chứa label dạng "S? T? KHAI" (tiếng Việt hoặc OCR nhòe)
+                bool hasLabel = Regex.IsMatch(lineUp,
+                    @"S[O06\u1ED0\u00D4\u1ED2\u1ED4\u1ED6\u1ED8].{0,5}T[O0\u1EDD\u1EDF\u1EE1\u1EE3\u1EDB\u01A0].{0,5}KHAI",
+                    RegexOptions.IgnoreCase);
 
-                            texts.Add(text);
-                        }
-                    }
+                // Fallback: dòng chứa "SO TO KHAI" hoặc biến thể OCR
+                if (!hasLabel)
+                    hasLabel = Regex.IsMatch(lineUp, @"S.{0,3}T.{0,3}KHAI", RegexOptions.IgnoreCase);
 
-                    return string.Join("\n\n", texts.Where(t => !string.IsNullOrWhiteSpace(t)));
+                if (!hasLabel) continue;
+
+                // Lấy tất cả chuỗi số trên dòng đó
+                var nums = Regex.Matches(lineUp, @"\d+");
+
+                // Ưu tiên: số đúng 12 chữ số
+                foreach (Match nm in nums)
+                    if (nm.Value.Length == 12)
+                        return nm.Value;
+
+                // Ghép tất cả số lại (trường hợp OCR tách số bằng dấu chấm/khoảng trắng)
+                string joined = string.Concat(nums.Select(m => m.Value));
+                if (joined.Length >= 10 && joined.Length <= 14)
+                    return joined;
+            }
+
+            // ── Chiến lược B: Regex multiline label + số ────────────
+            string t = Regex.Replace(text.ToUpperInvariant(), @"[ \t]+", " ").Trim();
+
+            var labelPatterns = new[]
+            {
+                // Label rõ + đúng 12 chữ số theo sau (ngay hoặc cách tối đa 15 ký tự)
+                @"S[O06].{0,5}T[O0].{0,5}KHAI[\s\S]{0,15}?(\d{12})\b",
+                // Label + số có thể có dấu chấm/khoảng trắng giữa
+                @"S[O06].{0,5}T[O0].{0,5}KHAI\s*[:\-]?\s*([\d][\d\. ]{8,14}[\d])",
+                @"S.{0,4}T.{0,4}KHAI\s*[:\-]?\s*([\d][\d\. ]{8,14}[\d])",
+            };
+
+            foreach (var pat in labelPatterns)
+            {
+                var m = Regex.Match(t, pat, RegexOptions.IgnoreCase);
+                if (!m.Success) continue;
+
+                string digits = Regex.Replace(m.Groups[1].Value, @"[^\d]", "");
+                if (digits.Length >= 10 && digits.Length <= 14)
+                    return digits;
+            }
+
+            // ── Chiến lược C: Standalone đúng 12 chữ số ────────────
+            // Không dùng 10-13 để tránh bắt nhầm mã loại hình, mã HS, v.v.
+            {
+                var m = Regex.Match(t, @"\b(\d{12})\b");
+                if (m.Success) return m.Groups[1].Value;
+            }
+
+            return null;
+        }
+
+        // ════════════════════════════════════════════════════════════
+        //  Build Excel — 3 cột, không có Ghi chú
+        // ════════════════════════════════════════════════════════════
+        private void BuildExcel(List<(string Name, string SoToKhai)> rows, string outputPath)
+        {
+            using var wb = new XLWorkbook();
+            var ws = wb.AddWorksheet("Mapping");
+
+            ws.Cell(1, 1).Value = "Tên file gốc";
+            ws.Cell(1, 2).Value = "Số tờ khai";
+            ws.Cell(1, 3).Value = "Tên mới (điền vào đây)";
+
+            var hdr = ws.Range(1, 1, 1, 3);
+            hdr.Style.Font.Bold = true;
+            hdr.Style.Fill.BackgroundColor = XLColor.FromHtml("#4472C4");
+            hdr.Style.Font.FontColor = XLColor.White;
+            hdr.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+
+            for (int i = 0; i < rows.Count; i++)
+            {
+                int r = i + 2;
+                var (name, soToKhai) = rows[i];
+
+                ws.Cell(r, 1).Value = name;
+                ws.Cell(r, 2).Value = soToKhai;
+                ws.Cell(r, 3).Value = "";
+
+                ws.Cell(r, 3).Style.Fill.BackgroundColor = XLColor.FromHtml("#FFF2CC");
+
+                if (soToKhai == "Unknown")
+                {
+                    ws.Cell(r, 2).Style.Font.FontColor = XLColor.Red;
+                    ws.Cell(r, 1).Style.Fill.BackgroundColor = XLColor.FromHtml("#FFE0E0");
                 }
             }
-            catch (Exception ex)
+
+            ws.Column(1).Width = 40;
+            ws.Column(2).Width = 20;
+            ws.Column(3).Width = 32;
+            ws.SheetView.Freeze(1, 0);
+
+            if (rows.Count > 0)
             {
-                debugLogs.Add($"  ❌ OCR Error: {ex.Message}");
-                if (ex.InnerException != null)
-                    debugLogs.Add($"     Inner: {ex.InnerException.Message}");
-                return "";
+                var dataRange = ws.Range(1, 1, rows.Count + 1, 3);
+                dataRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+                dataRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
             }
+
+            wb.SaveAs(outputPath);
         }
 
-        private string NormalizeOcrText(string text)
+        // ── Đọc mapping Excel ─────────────────────────────────────────
+        private Dictionary<string, string> ReadMappingExcel(string excelPath)
         {
-            if (string.IsNullOrWhiteSpace(text)) return "";
-
-            string t = text.ToUpperInvariant();
-
-            // OCR hay chèn dấu nháy: I'TA, I'I'A...
-            t = Regex.Replace(t, @"[\'`\u2019\u2018]", "");
-
-            // OCR hay chèn nhiều dấu gạch: ITA--0027..., ITA - - 0027...
-            t = Regex.Replace(t, @"\s*-\s*", "-");
-            t = Regex.Replace(t, @"-+", "-");
-
-            // gom nhiều space
-            t = Regex.Replace(t, @"\s+", " ");
-
-            return t;
+            var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            using var wb = new XLWorkbook(excelPath);
+            var ws = wb.Worksheet(1);
+            int lastRow = ws.LastRowUsed()?.RowNumber() ?? 1;
+            for (int r = 2; r <= lastRow; r++)
+            {
+                string orig = ws.Cell(r, 1).GetString()?.Trim();
+                string tenMoi = ws.Cell(r, 3).GetString()?.Trim();
+                if (!string.IsNullOrEmpty(orig))
+                    result[orig] = tenMoi;
+            }
+            return result;
         }
 
-        private bool IsValidAllowedCode(string code)
+        // ── Helpers ───────────────────────────────────────────────────
+        private string GetUniquePath(string folder, string fileName)
         {
-            if (string.IsNullOrWhiteSpace(code)) return false;
+            string path = Path.Combine(folder, fileName);
+            if (!System.IO.File.Exists(path)) return path;
 
-            var m = Regex.Match(code.Trim().ToUpperInvariant(),
-                $@"^({AllowedPrefixPattern})-(\d{{{MinDigits},10}}(?:-\d+)*)$",
-                RegexOptions.IgnoreCase);
-
-            return m.Success;
+            string nameOnly = Path.GetFileNameWithoutExtension(fileName);
+            string ext = Path.GetExtension(fileName);
+            int counter = 1;
+            while (System.IO.File.Exists(path))
+                path = Path.Combine(folder, $"{nameOnly}_{counter++}{ext}");
+            return path;
         }
 
-        private string ExtractDocumentNumber(string text, List<string> debugLogs)
+        private string SanitizeFileName(string name)
         {
-            if (string.IsNullOrWhiteSpace(text))
-                return "Unknown";
-
-            string norm = NormalizeOcrText(text);
-
-            // ===== ƯU TIÊN 1: Số quản lý của nội bộ doanh nghiệp (có nhãn + prefix whitelist) =====
-            var soQuanLyMatch = Regex.Match(norm,
-                $@"S[o06ốô]\w*\s+qu\w*\s+l[yý]\w*\s+c\w+\s+n\w+\s+b\w+\s+doanh\s+nghi\w+\s*[:\-]?\s*(({AllowedPrefixPattern})[\s\-]\d{{{MinDigits},10}})",
-                RegexOptions.IgnoreCase);
-
-            if (soQuanLyMatch.Success)
-            {
-                string raw = soQuanLyMatch.Groups[1].Value;
-                string cleaned = CleanOcrCode(raw);
-                debugLogs.Add($"  Raw label code: '{raw}' → Cleaned: '{cleaned}'");
-                if (IsValidAllowedCode(cleaned))
-                {
-                    debugLogs.Add($"  ✓ Số quản lý nội bộ: {cleaned}");
-                    return SanitizeFileName(cleaned);
-                }
-            }
-
-            // ===== ƯU TIÊN 2: Generic PREFIX-NUMBER (prefix whitelist) ở bất kỳ đâu =====
-            var genericMatch = Regex.Match(norm,
-                $@"\b(({AllowedPrefixPattern})-\d{{{MinDigits},10}}(?:-\d+)*)\b",
-                RegexOptions.IgnoreCase);
-
-            if (genericMatch.Success)
-            {
-                string raw = genericMatch.Groups[1].Value;
-                string cleaned = CleanOcrCode(raw);
-                debugLogs.Add($"  ✓ Generic allowed code: '{raw}' → '{cleaned}'");
-                if (IsValidAllowedCode(cleaned))
-                    return SanitizeFileName(cleaned.ToUpperInvariant());
-            }
-
-            // ===== ƯU TIÊN 3: Fallback theo nhãn nhưng mất prefix -> UNK-<digits> =====
-            var soQuanLyNumberMatch = Regex.Match(norm,
-                $@"S[o06ô]\w*\s+qu\w*\s+l\w+\s+c\w+\s+n\w+\s+b\w+\s+doanh\s+nghi\w+\s*[:\-]?\s*(\d{{{MinDigits},10}})",
-                RegexOptions.IgnoreCase);
-
-            if (soQuanLyNumberMatch.Success)
-            {
-                string digits = soQuanLyNumberMatch.Groups[1].Value.Trim();
-                string fallback = $"UNK-{digits}";
-                debugLogs.Add($"  ✓ Số quản lý nội bộ (fallback digits): {fallback}");
-                return SanitizeFileName(fallback);
-            }
-
-            // ===== ƯU TIÊN 4: Invoice =====
-            var invoiceMatch = Regex.Match(norm, @"Invoice\s*#?\s*:?\s*([A-Z0-9\-/]+)", RegexOptions.IgnoreCase);
-            if (invoiceMatch.Success && invoiceMatch.Groups[1].Value.Length >= 5)
-            {
-                string num = invoiceMatch.Groups[1].Value.Trim();
-                debugLogs.Add($"  ✓ Invoice: {num}");
-                return SanitizeFileName(num);
-            }
-
-            // ===== ƯU TIÊN 5: Packing list =====
-            var packingMatch = Regex.Match(norm, @"Packing\s*list\s*#?\s*:?\s*([A-Z0-9\-/]+)", RegexOptions.IgnoreCase);
-            if (packingMatch.Success && packingMatch.Groups[1].Value.Length >= 5)
-            {
-                string num = packingMatch.Groups[1].Value.Trim();
-                debugLogs.Add($"  ✓ Packing: {num}");
-                return SanitizeFileName(num);
-            }
-
-            debugLogs.Add($"  ✗ Không tìm thấy mã hợp lệ");
-            return "Unknown";
+            if (string.IsNullOrWhiteSpace(name)) return "Unknown";
+            char[] invalid = Path.GetInvalidFileNameChars();
+            string safe = new string(name.Select(c => invalid.Contains(c) ? '_' : c).ToArray());
+            return safe[..Math.Min(safe.Length, 150)];
         }
-
-        // Làm sạch mã bị OCR nhận sai ký tự.
-        private string CleanOcrCode(string raw)
-        {
-            if (string.IsNullOrWhiteSpace(raw)) return "";
-
-            string s = raw.Trim().ToUpperInvariant();
-
-            // Dấu nháy đơn/backtick giữa 2 chữ cái -> T  ("I''A" -> "ITA")
-            s = Regex.Replace(s, @"(?<=[A-Z])[\'`\u2019\u2018]{1,2}(?=[A-Z])", "T");
-
-            // l/I/| giữa 2 chữ số -> 1
-            s = Regex.Replace(s, @"(?<=\d)[lI|](?=\d)", "1");
-
-            // Chuẩn hóa dấu gạch nối
-            s = Regex.Replace(s, @"\s*-\s*", "-");
-            s = Regex.Replace(s, @"-+", "-");
-            s = Regex.Replace(s, @"\s+", " ");
-
-            // Nếu OCR ra "ITA 0027648" => "ITA-0027648" (áp dụng mọi prefix)
-            s = Regex.Replace(s, $@"\b({AllowedPrefixPattern})\s+(\d{{{MinDigits},10}})\b", "$1-$2", RegexOptions.IgnoreCase);
-
-            // Chỉ giữ A-Z, 0-9, '-', khoảng trắng (rồi bỏ space)
-            s = Regex.Replace(s, @"[^A-Z0-9\-\s]", "");
-            s = Regex.Replace(s, @"\s+", "");
-            s = s.Trim('-');
-
-            // Fix riêng: OCR hay nhầm IIA/IA -> ITA (vẫn nằm trong whitelist)
-            s = Regex.Replace(s, @"^(IIA|I1A|IA)-", "ITA-", RegexOptions.IgnoreCase);
-
-            // Nếu thiếu dấu - mà có dạng PREFIX+SỐ -> thêm dấu -
-            if (!s.Contains('-') && Regex.IsMatch(s, $@"^({AllowedPrefixPattern})\d{{{MinDigits},10}}$", RegexOptions.IgnoreCase))
-            {
-                var pm = Regex.Match(s, $@"^({AllowedPrefixPattern})(\d{{{MinDigits},10}})$", RegexOptions.IgnoreCase);
-                if (pm.Success)
-                    s = pm.Groups[1].Value.ToUpperInvariant() + "-" + pm.Groups[2].Value;
-            }
-
-            // Rút gọn chữ số bị lặp do OCR: "777" -> "77"
-            var dupMatch = Regex.Match(s, @"^([A-Z]+-)(0*)(\d+)$");
-            if (dupMatch.Success)
-            {
-                string pfx = dupMatch.Groups[1].Value;
-                string zeros = dupMatch.Groups[2].Value;
-                string digits = dupMatch.Groups[3].Value;
-                string fixedDigits = Regex.Replace(digits, @"(.)\1{2,}", m => new string(m.Groups[1].Value[0], 2));
-                if (fixedDigits != digits)
-                    s = pfx + zeros + fixedDigits;
-            }
-
-            return s;
-        }
-
-        private string SanitizeFileName(string fileName)
-        {
-            if (string.IsNullOrWhiteSpace(fileName))
-                return "Unknown";
-
-            char[] invalidChars = Path.GetInvalidFileNameChars();
-            string safe = new string(fileName.Select(c => invalidChars.Contains(c) ? '_' : c).ToArray());
-            return safe.Substring(0, Math.Min(safe.Length, 150));
-        }
-    }
-
-    public class PdfFileInfo
-    {
-        public string OriginalName { get; set; }
-        public string FileName { get; set; }
-        public string FilePath { get; set; }
-        public int PageNumber { get; set; }
-        public string ExtractedCode { get; set; }
-        public string InvoiceNumber => ExtractedCode; // giữ tương thích view cũ
     }
 }
-
-
-
-//using Microsoft.AspNetCore.Http;
-//using Microsoft.AspNetCore.Mvc;
-//using iText.Kernel.Pdf;
-//using iText.Kernel.Pdf.Canvas.Parser;
-//using iText.Kernel.Pdf.Canvas.Parser.Listener;
-//using Tesseract;
-//using System;
-//using System.Collections.Generic;
-//using System.IO;
-//using System.IO.Compression;
-//using System.Linq;
-//using System.Text.RegularExpressions;
-//using Docnet.Core;
-//using Docnet.Core.Models;
-//using SixLabors.ImageSharp;
-//using SixLabors.ImageSharp.PixelFormats;
-//using SixLabors.ImageSharp.Processing;
-
-//namespace C0302_HoangThai.Controllers.C0302
-//{
-//    public class PdfRenamer3PageController : Controller
-//    {
-//        [HttpGet]
-//        public IActionResult Upload()
-//        {
-//            return View();
-//        }
-
-//        [HttpPost]
-//        public IActionResult Upload(List<IFormFile> pdfFiles, IFormFile zipFile)
-//        {
-//            var debugLogs = new List<string>();
-//            var fileInfos = new List<PdfFileInfo>();
-
-//            try
-//            {
-//                var tempFolder = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-//                Directory.CreateDirectory(tempFolder);
-
-//                var extractedFolder = Path.Combine(tempFolder, "extracted");
-//                Directory.CreateDirectory(extractedFolder);
-
-//                // Xử lý ZIP file nếu có
-//                if (zipFile != null && zipFile.Length > 0)
-//                {
-//                    debugLogs.Add($"=== XỬ LÝ ZIP FILE: {zipFile.FileName} ===");
-
-//                    var zipPath = Path.Combine(tempFolder, zipFile.FileName);
-//                    using (var stream = new FileStream(zipPath, FileMode.Create))
-//                    {
-//                        zipFile.CopyTo(stream);
-//                    }
-
-//                    ZipFile.ExtractToDirectory(zipPath, extractedFolder);
-//                    debugLogs.Add($"✓ Giải nén thành công");
-
-//                    var pdfFilesInZip = Directory.GetFiles(extractedFolder, "*.pdf", SearchOption.AllDirectories);
-//                    debugLogs.Add($"✓ Tìm thấy {pdfFilesInZip.Length} file PDF trong ZIP");
-
-//                    foreach (var pdfPath in pdfFilesInZip)
-//                    {
-//                        ProcessSinglePdf(pdfPath, tempFolder, fileInfos, debugLogs);
-//                    }
-//                }
-//                // Xử lý multiple PDF files
-//                else if (pdfFiles != null && pdfFiles.Count > 0)
-//                {
-//                    debugLogs.Add($"=== XỬ LÝ {pdfFiles.Count} FILE PDF ===");
-
-//                    foreach (var pdfFile in pdfFiles)
-//                    {
-//                        if (pdfFile.Length == 0 || !pdfFile.FileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
-//                        {
-//                            debugLogs.Add($"⊘ Bỏ qua: {pdfFile.FileName} (không phải PDF)");
-//                            continue;
-//                        }
-
-//                        var tempPdfPath = Path.Combine(extractedFolder, pdfFile.FileName);
-//                        using (var stream = new FileStream(tempPdfPath, FileMode.Create))
-//                        {
-//                            pdfFile.CopyTo(stream);
-//                        }
-
-//                        ProcessSinglePdf(tempPdfPath, tempFolder, fileInfos, debugLogs);
-//                    }
-//                }
-//                else
-//                {
-//                    ViewBag.Error = "Vui lòng chọn file PDF hoặc file ZIP";
-//                    return View("Upload");
-//                }
-
-//                // Lưu debug log
-//                var logPath = Path.Combine(tempFolder, "rename_log.txt");
-//                System.IO.File.WriteAllLines(logPath, debugLogs);
-
-//                // Tạo ZIP output
-//                var outputZipPath = Path.Combine(Path.GetTempPath(), $"Renamed_PDFs_{DateTime.Now:yyyyMMddHHmmss}.zip");
-//                ZipFile.CreateFromDirectory(tempFolder, outputZipPath);
-
-//                try { Directory.Delete(extractedFolder, true); } catch { }
-
-//                ViewBag.Success = $"Đã đổi tên thành công {fileInfos.Count} file PDF!";
-//                ViewBag.Files = fileInfos;
-//                ViewBag.ZipPath = outputZipPath;
-//                ViewBag.TotalFiles = fileInfos.Count;
-//                ViewBag.DebugLogs = debugLogs;
-
-//                return View("Upload");
-//            }
-//            catch (Exception ex)
-//            {
-//                ViewBag.Error = $"Lỗi xử lý: {ex.Message}\n{ex.StackTrace}";
-//                ViewBag.DebugLogs = debugLogs;
-//                return View("Upload");
-//            }
-//        }
-
-//        [HttpGet]
-//        public IActionResult DownloadZip(string filePath)
-//        {
-//            if (string.IsNullOrEmpty(filePath) || !System.IO.File.Exists(filePath))
-//                return NotFound();
-
-//            var memory = new MemoryStream();
-//            using (var stream = new FileStream(filePath, FileMode.Open))
-//            {
-//                stream.CopyTo(memory);
-//            }
-//            memory.Position = 0;
-
-//            return File(memory, "application/zip", Path.GetFileName(filePath));
-//        }
-
-//        // ── Xử lý 1 file PDF: đọc tên → copy với tên mới (giữ nguyên toàn bộ trang) ──
-//        private void ProcessSinglePdf(string inputPath, string outputFolder, List<PdfFileInfo> fileInfos, List<string> debugLogs)
-//        {
-//            try
-//            {
-//                string originalName = Path.GetFileName(inputPath);
-//                debugLogs.Add($"\n--- Xử lý: {originalName} ---");
-
-//                string newFileName = ExtractFileNameFromPdf(inputPath, debugLogs);
-
-//                string outputPath = Path.Combine(outputFolder, $"{newFileName}.pdf");
-//                int counter = 1;
-//                while (System.IO.File.Exists(outputPath))
-//                {
-//                    outputPath = Path.Combine(outputFolder, $"{newFileName}_{counter}.pdf");
-//                    counter++;
-//                }
-
-//                // Copy nguyên file — chỉ đổi tên, không tách trang
-//                System.IO.File.Copy(inputPath, outputPath, true);
-
-//                fileInfos.Add(new PdfFileInfo
-//                {
-//                    OriginalName = originalName,
-//                    FileName = Path.GetFileName(outputPath),
-//                    FilePath = outputPath,
-//                    ExtractedCode = newFileName
-//                });
-
-//                debugLogs.Add($"✓ Đổi tên: {originalName} → {Path.GetFileName(outputPath)}");
-//            }
-//            catch (Exception ex)
-//            {
-//                debugLogs.Add($"❌ Lỗi xử lý {Path.GetFileName(inputPath)}: {ex.Message}");
-//            }
-//        }
-
-//        // ── Đọc trang 1 của PDF → ưu tiên text layer, fallback OCR ──
-//        private string ExtractFileNameFromPdf(string pdfPath, List<string> debugLogs)
-//        {
-//            try
-//            {
-//                using (var reader = new iText.Kernel.Pdf.PdfReader(pdfPath))
-//                using (var pdfDoc = new iText.Kernel.Pdf.PdfDocument(reader))
-//                {
-//                    var page = pdfDoc.GetPage(1);
-//                    var strategy = new SimpleTextExtractionStrategy();
-//                    string pageText = PdfTextExtractor.GetTextFromPage(page, strategy);
-
-//                    string meaningfulText = Regex.Replace(pageText ?? "", @"[\s\x00-\x1f\x7f]", "");
-//                    debugLogs.Add($"  Text layer: {(pageText?.Length ?? 0)} raw, {meaningfulText.Length} có nghĩa");
-
-//                    if (meaningfulText.Length >= 10)
-//                    {
-//                        debugLogs.Add($"  ✓ Đọc được text layer");
-//                        debugLogs.Add($"  Text (500 ký tự đầu): {pageText.Substring(0, Math.Min(500, pageText.Length))}");
-
-//                        string fileName = ExtractDocumentNumber(pageText, debugLogs);
-//                        if (!fileName.StartsWith("Unknown", StringComparison.OrdinalIgnoreCase))
-//                            return fileName;
-//                    }
-//                }
-
-//                debugLogs.Add($"  ⟳ Sử dụng OCR...");
-//                string ocrText = PerformOCR(pdfPath, debugLogs);
-
-//                if (!string.IsNullOrWhiteSpace(ocrText))
-//                    return ExtractDocumentNumber(ocrText, debugLogs);
-
-//                return "Unknown";
-//            }
-//            catch (Exception ex)
-//            {
-//                debugLogs.Add($"  ❌ Lỗi đọc PDF: {ex.Message}");
-//                return "Unknown";
-//            }
-//        }
-
-//        // OCR nhiều vùng (đỡ bị lệch mẫu scan) rồi ghép text lại
-//        private string PerformOCR(string pdfPath, List<string> debugLogs)
-//        {
-//            try
-//            {
-//                // Render ở ~400 DPI để Tesseract đọc chính xác hơn
-//                using (var library = DocLib.Instance)
-//                using (var docReader = library.GetDocReader(pdfPath, new PageDimensions(3307, 4677))) // ~400dpi A4
-//                using (var pageReader = docReader.GetPageReader(0))
-//                {
-//                    var width = pageReader.GetPageWidth();
-//                    var height = pageReader.GetPageHeight();
-//                    var rawBytes = pageReader.GetImage();
-
-//                    debugLogs.Add($"  ✓ Render {width}x{height}");
-
-//                    // OCR 3 vùng: (45-65), (60-80), (75-100)
-//                    var regions = new List<(float y0, float y1, string name)>
-//                    {
-//                        (0.45f, 0.65f, "mid1"),
-//                        (0.60f, 0.80f, "mid2"),
-//                        (0.75f, 1.00f, "bottom"),
-//                    };
-
-//                    var texts = new List<string>();
-
-//                    foreach (var r in regions)
-//                    {
-//                        int cropStartY = (int)(height * r.y0);
-//                        int cropEndY = (int)(height * r.y1);
-//                        if (cropEndY <= cropStartY) cropEndY = cropStartY + 1;
-//                        int cropH = cropEndY - cropStartY;
-
-//                        debugLogs.Add($"  ✓ Crop({r.name}) Y={cropStartY}→{cropEndY} (H={cropH})");
-
-//                        byte[] pngBytes;
-//                        using (var fullImg = SixLabors.ImageSharp.Image.LoadPixelData<Rgba32>(rawBytes, width, height))
-//                        {
-//                            fullImg.Mutate(ctx => ctx
-//                                .Crop(new SixLabors.ImageSharp.Rectangle(0, cropStartY, width, cropH))
-//                                .Resize(width * 2, cropH * 2)
-//                                .Grayscale()
-//                                .BinaryThreshold(0.60f)); // ~153/255
-
-//                            using (var ms = new MemoryStream())
-//                            {
-//                                fullImg.SaveAsPng(ms);
-//                                pngBytes = ms.ToArray();
-//                            }
-//                        }
-
-//                        var tessDataPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "tessdata");
-//                        if (!Directory.Exists(tessDataPath) ||
-//                            !System.IO.File.Exists(Path.Combine(tessDataPath, "eng.traineddata")))
-//                        {
-//                            debugLogs.Add($"  ❌ Thiếu tessdata/eng.traineddata");
-//                            return "";
-//                        }
-
-//                        using (var engine = new TesseractEngine(tessDataPath, "eng", EngineMode.Default))
-//                        using (var pix = Pix.LoadFromMemory(pngBytes))
-//                        using (var pg = engine.Process(pix, PageSegMode.Auto))
-//                        {
-//                            string text = pg.GetText() ?? "";
-//                            float conf = pg.GetMeanConfidence();
-//                            debugLogs.Add($"  OCR({r.name}) confidence: {conf:F2}");
-
-//                            if (!string.IsNullOrWhiteSpace(text))
-//                                debugLogs.Add($"  📄 OCR({r.name}) preview: {text.Replace("\n", " ")[..Math.Min(220, text.Length)]}");
-
-//                            texts.Add(text);
-//                        }
-//                    }
-
-//                    return string.Join("\n\n", texts.Where(t => !string.IsNullOrWhiteSpace(t)));
-//                }
-//            }
-//            catch (Exception ex)
-//            {
-//                debugLogs.Add($"  ❌ OCR Error: {ex.Message}");
-//                if (ex.InnerException != null)
-//                    debugLogs.Add($"     Inner: {ex.InnerException.Message}");
-//                return "";
-//            }
-//        }
-//        private string NormalizeOcrText(string text)
-//        {
-//            if (string.IsNullOrWhiteSpace(text)) return "";
-
-//            string t = text.ToUpperInvariant();
-
-//            // OCR hay chèn dấu nháy: I'TA, I'I'A...
-//            t = Regex.Replace(t, @"[\'`\u2019\u2018]", "");
-
-//            // OCR hay chèn nhiều dấu gạch: ITA--0027..., ITA - - 0027...
-//            t = Regex.Replace(t, @"\s*-\s*", "-");
-//            t = Regex.Replace(t, @"-+", "-");
-
-//            // gom nhiều space
-//            t = Regex.Replace(t, @"\s+", " ");
-
-//            return t;
-//        }
-//        private string ExtractDocumentNumber(string text, List<string> debugLogs)
-//        {
-//            if (string.IsNullOrWhiteSpace(text))
-//                return "Unknown";
-
-//            // Normalize để bắt được kiểu I'TA--0027652 / I'I'A-00277648
-//            string norm = NormalizeOcrText(text);
-
-//            // ===== ƯU TIÊN 0: bắt trực tiếp ITA-xxxxxxx ở bất kỳ đâu (sau normalize) =====
-//            var directIta = Regex.Match(norm, @"\bITA-\d{6,10}\b", RegexOptions.IgnoreCase);
-//            if (directIta.Success)
-//            {
-//                string cleaned = CleanOcrCode(directIta.Value);
-//                debugLogs.Add($"  ✓ Direct ITA code: '{directIta.Value}' → '{cleaned}'");
-//                if (cleaned.Length >= 8)
-//                    return SanitizeFileName(cleaned);
-//            }
-
-//            // ===== ƯU TIÊN 1: Số quản lý của nội bộ doanh nghiệp (có nhãn) =====
-//            var soQuanLyMatch = Regex.Match(norm,
-//                @"S[o06ốô]\w*\s+qu\w*\s+l[yý]\w*\s+c\w+\s+n\w+\s+b\w+\s+doanh\s+nghi\w+\s*[:\-]?\s*([A-Z]{2,8}[\s\-]\d{5,10}(?:[\s\-]\d+)?)",
-//                RegexOptions.IgnoreCase);
-//            if (soQuanLyMatch.Success)
-//            {
-//                string raw = soQuanLyMatch.Groups[1].Value;
-//                string cleaned = CleanOcrCode(raw);
-//                debugLogs.Add($"  Raw label code: '{raw}' → Cleaned: '{cleaned}'");
-//                if (cleaned.Length >= 8)
-//                {
-//                    debugLogs.Add($"  ✓ Số quản lý nội bộ: {cleaned}");
-//                    return SanitizeFileName(cleaned);
-//                }
-//            }
-
-//            // Fallback: chỉ bắt dãy số 6-10 chữ số gần nhãn (nếu OCR rớt prefix)
-//            var soQuanLyNumberMatch = Regex.Match(norm,
-//                @"S[o06ô]\w*\s+qu\w*\s+l\w+\s+c\w+\s+n\w+\s+b\w+\s+doanh\s+nghi\w+\s*[:\-]?\s*(?:[A-Z]{0,8}\s*)?-?\s*(\d{6,10})",
-//                RegexOptions.IgnoreCase);
-//            if (soQuanLyNumberMatch.Success)
-//            {
-//                string digits = soQuanLyNumberMatch.Groups[1].Value.Trim();
-//                string fallback = "ITA-" + digits;
-//                debugLogs.Add($"  ✓ Số quản lý nội bộ (fallback digits): {fallback}");
-//                return SanitizeFileName(fallback);
-//            }
-
-//            // ===== ƯU TIÊN 2: Invoice =====
-//            var invoiceMatch = Regex.Match(norm, @"Invoice\s*#?\s*:?\s*([A-Z0-9\-/]+)", RegexOptions.IgnoreCase);
-//            if (invoiceMatch.Success && invoiceMatch.Groups[1].Value.Length >= 5)
-//            {
-//                string num = invoiceMatch.Groups[1].Value.Trim();
-//                debugLogs.Add($"  ✓ Invoice: {num}");
-//                return SanitizeFileName(num);
-//            }
-
-//            // ===== ƯU TIÊN 3: Packing list =====
-//            var packingMatch = Regex.Match(norm, @"Packing\s*list\s*#?\s*:?\s*([A-Z0-9\-/]+)", RegexOptions.IgnoreCase);
-//            if (packingMatch.Success && packingMatch.Groups[1].Value.Length >= 5)
-//            {
-//                string num = packingMatch.Groups[1].Value.Trim();
-//                debugLogs.Add($"  ✓ Packing: {num}");
-//                return SanitizeFileName(num);
-//            }
-
-//            // ===== ƯU TIÊN 4: Generic PREFIX-XXXXXXX =====
-//            var genericMatch = Regex.Match(norm,
-//                @"\b([A-Z]{2,8}-\d{5,10}(?:-\d+)*(?:/[A-Z]{2,8}-\d{5,10}(?:-\d+)*)*)\b",
-//                RegexOptions.IgnoreCase);
-//            if (genericMatch.Success)
-//            {
-//                string cleaned = CleanOcrCode(genericMatch.Groups[1].Value);
-//                debugLogs.Add($"  ✓ Generic code: '{genericMatch.Groups[1].Value}' → '{cleaned}'");
-//                return SanitizeFileName(cleaned.ToUpperInvariant());
-//            }
-
-//            debugLogs.Add($"  ✗ Không tìm thấy mã hợp lệ");
-//            return "Unknown";
-//        }
-//        // Làm sạch mã bị OCR nhận sai ký tự.
-//        // Và normalize các prefix bị OCR sai (LTTA, ITTA, ITRA, PRA...) => ITA nếu digits có dạng 6-10 số
-//        private string CleanOcrCode(string raw)
-//        {
-//            if (string.IsNullOrWhiteSpace(raw)) return "";
-
-//            string s = raw.Trim().ToUpperInvariant();
-
-//            // Dấu nháy đơn/backtick giữa 2 chữ cái -> T  ("I''A" -> "ITA")
-//            s = Regex.Replace(s, @"(?<=[A-Z])[\'`\u2019\u2018]{1,2}(?=[A-Z])", "T");
-
-//            // l/I/| giữa 2 chữ số -> 1
-//            s = Regex.Replace(s, @"(?<=\d)[lI|](?=\d)", "1");
-
-//            // Chuẩn hóa dấu gạch nối
-//            s = Regex.Replace(s, @"\s*-\s*", "-");
-//            s = Regex.Replace(s, @"\s+", " ");
-
-//            // Nếu OCR ra "ITA 0027648" => "ITA-0027648"
-//            s = Regex.Replace(s, @"\b([A-Z]{2,8})\s+(\d{6,10})\b", "$1-$2");
-
-//            // Chỉ giữ A-Z, 0-9, '-', khoảng trắng (rồi bỏ space)
-//            s = Regex.Replace(s, @"[^A-Z0-9\-\s]", "");
-//            s = Regex.Replace(s, @"\s+", "");
-//            s = s.Trim('-');
-
-//            // Nếu không có dấu - mà có dạng PREFIX+SỐ -> thêm dấu -
-//            if (!s.Contains('-') && s.Length >= 8 && Regex.IsMatch(s, @"^[A-Z]{2,8}\d{6,10}$"))
-//            {
-//                var pm = Regex.Match(s, @"^([A-Z]{2,8})(\d{6,10})$");
-//                if (pm.Success)
-//                    s = pm.Groups[1].Value + "-" + pm.Groups[2].Value;
-//            }
-
-//            // Rút gọn chữ số bị lặp do OCR: "777" -> "77"
-//            var dupMatch = Regex.Match(s, @"^([A-Z]+-)(0*)(\d+)$");
-//            if (dupMatch.Success)
-//            {
-//                string pfx = dupMatch.Groups[1].Value;
-//                string zeros = dupMatch.Groups[2].Value;
-//                string digits = dupMatch.Groups[3].Value;
-//                string fixedDigits = Regex.Replace(digits, @"(.)\1{2,}", m => new string(m.Groups[1].Value[0], 2));
-//                if (fixedDigits != digits)
-//                    s = pfx + zeros + fixedDigits;
-//            }
-
-//            // Normalize prefix về ITA nếu digits hợp lệ
-//            var m2 = Regex.Match(s, @"^([A-Z]{2,8})-(\d{6,10})$");
-//            if (m2.Success)
-//            {
-//                var digits = m2.Groups[2].Value;
-//                // nếu dãy số 6-10 chữ số => ép ITA để tránh LTTA/PRA/ITRA/ITTA...
-//                s = "ITA-" + digits;
-//            }
-
-//            return s;
-//        }
-
-//        private string SanitizeFileName(string fileName)
-//        {
-//            if (string.IsNullOrWhiteSpace(fileName))
-//                return "Unknown";
-
-//            char[] invalidChars = Path.GetInvalidFileNameChars();
-//            string safe = new string(fileName.Select(c => invalidChars.Contains(c) ? '_' : c).ToArray());
-//            return safe.Substring(0, Math.Min(safe.Length, 150));
-//        }
-//    }
-
-//    public class PdfFileInfo
-//    {
-//        public string OriginalName { get; set; }
-//        public string FileName { get; set; }
-//        public string FilePath { get; set; }
-//        public int PageNumber { get; set; }
-//        public string ExtractedCode { get; set; }
-//        public string InvoiceNumber => ExtractedCode; // giữ tương thích view cũ
-//    }
-//}

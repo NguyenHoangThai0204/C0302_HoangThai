@@ -269,11 +269,9 @@ namespace C0302_HoangThai.Controllers.C0302
                 }
                 else
                 {
-                    // Nhiều invoice cùng prefix → rút gọn suffix giống nhau
                     var nums = group.Select(g => g.Num).ToList();
                     string firstNum = nums[0];
 
-                    // Tìm độ dài phần chung (common prefix) giữa TẤT CẢ các số
                     int commonLen = firstNum.Length;
                     foreach (var num in nums.Skip(1))
                     {

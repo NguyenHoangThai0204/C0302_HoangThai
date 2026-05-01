@@ -20,8 +20,8 @@ builder.Services.AddControllersWithViews()
 builder.Services.AddDbContext<Context0302>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("Connection")));
 
-// Cấu hình Session (CÁCH MỚI)
-builder.Services.AddDistributedMemoryCache(); // THÊM DÒNG NÀY
+// Cấu hình Session
+builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
     options.IdleTimeout = TimeSpan.FromMinutes(20);
@@ -29,9 +29,19 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;
 });
 
-
 builder.Services.AddScoped<IS0302XoaGoiChiDinhInterface, S0302XoaGoiChiDinhService>();
 
+builder.Services.Configure<IISServerOptions>(options =>
+{
+    options.MaxRequestBodySize = 500_000_000; // 500 MB
+});
+
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = 500_000_000; // 500 MB
+    options.Limits.KeepAliveTimeout = TimeSpan.FromMinutes(10);
+    options.Limits.RequestHeadersTimeout = TimeSpan.FromMinutes(10);
+});
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
@@ -60,8 +70,8 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
-app.UseAuthorization();
-app.UseSession();  // ĐẶT SAU UseRouting() và TRƯỚC MapControllerRoute()
+app.UseSession();       // ✅ TRƯỚC UseAuthorization
+app.UseAuthorization(); // ✅ SAU UseSession
 
 app.MapControllerRoute(
     name: "default",

@@ -1,104 +1,166 @@
 ﻿@{
-    ViewData["Title"] = "Đổi tên File PDF";
+    ViewData["Title"] = "Đọc Số tờ khai PDF";
 }
 
-<div class="container mt-5">
+<div class="container mt-4">
     <div class="row justify-content-center">
         <div class="col-md-8">
-            <div class="card shadow">
+
+            {{!-- BƯỚC 1 --}}
+            <div class="card shadow mb-4">
                 <div class="card-header bg-danger text-white">
-                    <h3 class="mb-0"><i class="bi bi-file-pdf"></i> Đổi tên PDF theo Số quản lý nội bộ</h3>
+                    <h5 class="mb-0"><i class="bi bi-file-pdf"></i> Bước 1 — Đọc Số tờ khai → Tải Excel</h5>
                 </div>
                 <div class="card-body">
-
-                    @if (ViewBag.Error != null)
-                    {
-                        <div class="alert alert-danger">
-                            <i class="bi bi-exclamation-circle"></i> @ViewBag.Error
-                        </div>
-                    }
-
-                    @if (ViewBag.Success != null)
-                    {
-                        <div class="alert alert-success">
-                            <i class="bi bi-check-circle"></i> @ViewBag.Success
-                        </div>
-
-                        <div class="mb-3 d-flex gap-2">
-                            <a href="@Url.Action("DownloadZip", "PdfRenamer3Page", new { filePath = ViewBag.ZipPath })"
-                               class="btn btn-success btn-lg flex-fill">
-                                <i class="bi bi-download"></i> Tải về tất cả (@ViewBag.TotalFiles file)
-                            </a>
-                            <a href="@Url.Action("Upload", "PdfRenamer3Page")"
-                               class="btn btn-secondary btn-lg">
-                                <i class="bi bi-arrow-counterclockwise"></i> Đổi tên mới
-                            </a>
-                        </div>
-
-                        @if (ViewBag.Files != null)
-                        {
-                            <h5>Danh sách file đã đổi tên:</h5>
-                            <div class="list-group mb-3">
-                                @foreach (var file in ViewBag.Files)
-                                {
-                                    <div class="list-group-item">
-                                        <i class="bi bi-file-pdf text-danger"></i>
-                                        <span class="text-muted small">@file.OriginalName</span>
-                                        <i class="bi bi-arrow-right mx-2"></i>
-                                        <strong>@file.FileName</strong>
-                                    </div>
-                                }
-                            </div>
-                        }
-
-                        @if (ViewBag.DebugLogs != null)
-                        {
-                            <details class="mt-3">
-                                <summary class="text-muted small" style="cursor:pointer">Xem debug log</summary>
-                                <pre class="small bg-light p-2 mt-2" style="max-height:300px;overflow-y:auto">@string.Join("\n", ViewBag.DebugLogs)</pre>
-                            </details>
-                        }
-                    }
-
-                    <form method="post" enctype="multipart/form-data" asp-action="Upload" asp-controller="PdfRenamer3Page" class="mt-4">
+                    <form method="post" enctype="multipart/form-data"
+                          asp-action="Step1_ExportExcel" asp-controller="PdfRenamer3Page"
+                          id="form-step1">
                         <div class="mb-3">
-                            <label class="form-label">Chọn file PDF (có thể chọn nhiều):</label>
-                            <input type="file"
-                                   class="form-control"
-                                   name="pdfFiles"
-                                   accept=".pdf"
-                                   multiple>
-                            <div class="form-text">Chấp nhận nhiều file .pdf cùng lúc</div>
+                            <label class="form-label fw-semibold">Chọn nhiều file PDF:</label>
+                            <input type="file" class="form-control" name="pdfFiles"
+                                   accept=".pdf" multiple id="input-pdfs">
                         </div>
-
-                        @* <div class="mb-3">
-                            <label class="form-label">Hoặc upload file ZIP chứa PDF:</label>
-                            <input type="file"
-                                   class="form-control"
-                                   name="zipFile"
-                                   accept=".zip">
-                        </div> *@
-
-                        <button type="submit" class="btn btn-danger btn-lg w-100">
-                            <i class="bi bi-pencil-square"></i> Đổi tên
-                        </button>
+                        <div class="text-center text-muted my-1" style="font-size:.85rem">— hoặc —</div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Upload file ZIP chứa PDF:</label>
+                            <input type="file" class="form-control" name="zipFile"
+                                   accept=".zip" id="input-zip">
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-danger flex-fill" id="btn-step1">
+                                <i class="bi bi-download"></i> Tải về Excel mapping
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" onclick="resetStep1()">
+                                <i class="bi bi-arrow-counterclockwise"></i> Load lại
+                            </button>
+                        </div>
+                        <div id="step1-loading" class="text-center mt-3" style="display:none">
+                            <div class="spinner-border spinner-border-sm text-danger me-2"></div>
+                            <span class="text-muted">Đang đọc PDF và tạo Excel... Vui lòng chờ</span>
+                        </div>
                     </form>
-
-                    <div class="mt-4">
-                        <h6>Hướng dẫn:</h6>
-                        <ul class="small">
-                            <li>Upload file PDF (1 hoặc nhiều file)</li>
-                            <li>Tên file được lấy từ trường <strong>Số quản lý của nội bộ doanh nghiệp</strong> trên trang đầu</li>
-                            <li>Ví dụ: <code>ITA-0027652.pdf</code></li>
-                            <li>Nếu không tìm được, tên file sẽ là <code>Unknown.pdf</code></li>
-                            <li>File PDF giữ nguyên toàn bộ trang, chỉ đổi tên</li>
-                        </ul>
-                    </div>
-
+                    <ul class="small text-muted mt-3 mb-0">
+                        <li>Hệ thống đọc <strong>Số tờ khai</strong> (12 chữ số) ở đầu trang 1</li>
+                        <li>Tải về <code>Mapping_SoToKhai.xlsx</code> — điền cột <span class="badge" style="background:#FFF2CC;color:#333">Tên mới</span> rồi dùng Bước 2</li>
+                        <li>File <span class="text-danger">Unknown</span> = không đọc được → kiểm tra thủ công</li>
+                    </ul>
                 </div>
             </div>
+
+            {{!-- BƯỚC 2 --}}
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-pencil-square"></i> Bước 2 — Điền tên mới → Đổi tên PDF</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data"
+                          asp-action="Step2_RenameFiles" asp-controller="PdfRenamer3Page"
+                          id="form-step2">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">ZIP chứa PDF gốc:</label>
+                            <input type="file" class="form-control" name="pdfZip"
+                                   accept=".zip" id="input-zip2">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Excel mapping (đã điền cột Tên mới):</label>
+                            <input type="file" class="form-control" name="mappingExcel"
+                                   accept=".xlsx" id="input-excel2">
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary flex-fill" id="btn-step2">
+                                <i class="bi bi-arrow-repeat"></i> Tải về ZIP PDF đã đổi tên
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" onclick="resetStep2()">
+                                <i class="bi bi-arrow-counterclockwise"></i> Load lại
+                            </button>
+                        </div>
+                        <div id="step2-loading" class="text-center mt-3" style="display:none">
+                            <div class="spinner-border spinner-border-sm text-primary me-2"></div>
+                            <span class="text-muted">Đang đổi tên và đóng gói ZIP... Vui lòng chờ</span>
+                        </div>
+                    </form>
+                    <ul class="small text-muted mt-3 mb-0">
+                        <li>Mở Excel từ Bước 1 → điền cột <span class="badge" style="background:#FFF2CC;color:#333">Tên mới</span> cho từng file</li>
+                        <li>Để trống → giữ nguyên tên gốc</li>
+                        <li>Bước 2 cần ZIP các file PDF gốc (chưa đổi tên)</li>
+                    </ul>
+                </div>
+            </div>
+
         </div>
     </div>
 </div>
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+
+<script>
+    // ── Dùng fetch + blob để download file mà không reload trang ──
+    function handleFormSubmit(formId, spinnerId, btnId) {
+        const form = document.getElementById(formId);
+        form.addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            // Hiện spinner, khóa nút
+            document.getElementById(spinnerId).style.display = 'block';
+            document.getElementById(btnId).disabled = true;
+
+            try {
+                const formData = new FormData(form);
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    // Server trả lỗi → đọc text và hiện thông báo
+                    const errText = await response.text();
+                    alert('Lỗi: ' + errText);
+                    return;
+                }
+
+                // Lấy tên file từ header Content-Disposition
+                const disposition = response.headers.get('Content-Disposition') || '';
+                let fileName = 'download';
+                const match = disposition.match(/filename[^;=\n]*=(?:UTF-8''|["']?)([^"';\n]*)/i);
+                if (match && match[1]) {
+                    fileName = decodeURIComponent(match[1].replace(/\+/g, ' '));
+                }
+
+                // Tạo blob và trigger download
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(url);
+
+            } catch (err) {
+                alert('Có lỗi xảy ra: ' + err.message);
+            } finally {
+                // Ẩn spinner, mở lại nút dù thành công hay lỗi
+                document.getElementById(spinnerId).style.display = 'none';
+                document.getElementById(btnId).disabled = false;
+            }
+        });
+    }
+
+    handleFormSubmit('form-step1', 'step1-loading', 'btn-step1');
+    handleFormSubmit('form-step2', 'step2-loading', 'btn-step2');
+
+    // ── Load lại ──────────────────────────────────────────────────
+    function resetStep1() {
+        document.getElementById('input-pdfs').value = '';
+        document.getElementById('input-zip').value  = '';
+        document.getElementById('step1-loading').style.display = 'none';
+        document.getElementById('btn-step1').disabled = false;
+    }
+    function resetStep2() {
+        document.getElementById('input-zip2').value   = '';
+        document.getElementById('input-excel2').value = '';
+        document.getElementById('step2-loading').style.display = 'none';
+        document.getElementById('btn-step2').disabled = false;
+    }
+</script>
