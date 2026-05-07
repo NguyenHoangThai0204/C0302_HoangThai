@@ -1,60 +1,280 @@
-﻿<style>
-    .pdf-container {
-        max-width: 420px;
-        margin: 60px auto;
-        padding: 30px;
-        border-radius: 12px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-        background: #fff;
-        text-align: center;
-        font-family: Arial, sans-serif;
+﻿@{
+    ViewData["Title"] = "Tách PDF theo Số tờ khai";
+}
+
+<style>
+    body {
+        background: #f5f7fb;
+        font-family: Arial;
     }
 
-        .pdf-container h3 {
-            margin-bottom: 20px;
-            color: #333;
-        }
+    .wrapper {
+        max-width: 700px;
+        margin: 40px auto;
+    }
+
+    .card-box {
+        background: white;
+        border-radius: 14px;
+        padding: 28px;
+        margin-bottom: 30px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+    }
+
+    .title {
+        font-size: 24px;
+        font-weight: bold;
+        margin-bottom: 20px;
+        text-align: center;
+    }
+
+    .sub {
+        color: #666;
+        text-align: center;
+        margin-bottom: 25px;
+    }
 
     .file-input {
-        display: block;
         width: 100%;
-        padding: 10px;
+        padding: 12px;
         border: 2px dashed #ccc;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: 0.3s;
+        border-radius: 10px;
+        background: #fafafa;
     }
-
-        .file-input:hover {
-            border-color: #007bff;
-            background: #f8f9fa;
-        }
 
     .btn-submit {
         margin-top: 20px;
         width: 100%;
-        padding: 12px;
+        padding: 14px;
         border: none;
-        border-radius: 8px;
+        border-radius: 10px;
         background: #007bff;
-        color: #fff;
+        color: white;
         font-size: 16px;
+        font-weight: bold;
         cursor: pointer;
-        transition: 0.3s;
     }
 
         .btn-submit:hover {
             background: #0056b3;
         }
+
+    .loading {
+        display: none;
+        margin-top: 15px;
+        text-align: center;
+        color: #555;
+    }
+
+    ul.note {
+        margin-top: 20px;
+        color: #555;
+    }
+
+        ul.note li {
+            margin-bottom: 8px;
+        }
 </style>
-@{
-    ViewData["Title"] = "📄 Tách file PDF";
-}
 
-<div class="pdf-container">
+<div class="wrapper">
 
-    <form asp-action="SplitPdf" asp-controller="Pdf" method="post" enctype="multipart/form-data">
-        <input type="file" name="file" class="file-input" />
-        <button type="submit" class="btn-submit">Tách PDF</button>
-    </form>
+    <!-- STEP 1 -->
+    <div class="card-box">
+
+        <div class="title">
+            📄 Bước 1 — Tách PDF
+        </div>
+
+        <div class="sub">
+            Hệ thống tự đọc Số tờ khai và tách file PDF
+        </div>
+
+        <form id="form-step1"
+              asp-action="SplitPdf"
+              asp-controller="Pdf"
+              method="post"
+              enctype="multipart/form-data">
+
+            <input type="file"
+                   name="file"
+                   class="file-input"
+                   accept=".pdf"
+                   required />
+
+            <button class="btn-submit" id="btn-step1">
+                🚀 Tách PDF
+            </button>
+
+            <div class="loading" id="loading-step1">
+                Đang xử lý PDF...
+            </div>
+
+        </form>
+
+        <ul class="note">
+            <li>Trang có số tờ khai mới → tạo file PDF mới</li>
+            <li>ZIP tải về gồm PDF + Mapping.xlsx</li>
+        </ul>
+
+    </div>
+
+    <!-- STEP 2 -->
+    <div class="card-box">
+
+        <div class="title">
+            📝 Bước 2 — Đổi tên PDF
+        </div>
+
+        <div class="sub">
+            Upload ZIP đã tách + file Excel mapping
+        </div>
+
+        <form id="form-step2"
+              asp-action="RenameFiles"
+              asp-controller="Pdf"
+              method="post"
+              enctype="multipart/form-data">
+
+            <label>ZIP PDF:</label>
+
+            <input type="file"
+                   name="pdfZip"
+                   class="file-input"
+                   accept=".zip"
+                   required />
+
+            <br />
+            <br />
+
+            <label>Excel Mapping:</label>
+
+            <input type="file"
+                   name="mappingExcel"
+                   class="file-input"
+                   accept=".xlsx"
+                   required />
+
+            <button class="btn-submit" id="btn-step2">
+                🔄 Đổi tên PDF
+            </button>
+
+            <div class="loading" id="loading-step2">
+                Đang đổi tên file...
+            </div>
+
+        </form>
+
+        <ul class="note">
+            <li>Điền cột "Tên mới" trong Excel</li>
+            <li>
+                Hệ thống sẽ đổi tên theo:
+                <b>Số tờ khai - Tên mới.pdf</b>
+            </li>
+        </ul>
+
+    </div>
+
 </div>
+
+<script>
+    async function handleForm(formId, loadingId, btnId) {
+
+        const form = document.getElementById(formId);
+
+        form.addEventListener('submit', async function (e) {
+
+            e.preventDefault();
+
+            const loading =
+                document.getElementById(loadingId);
+
+            const btn =
+                document.getElementById(btnId);
+
+            loading.style.display = 'block';
+
+            btn.disabled = true;
+
+            try {
+
+                const formData =
+                    new FormData(form);
+
+                const response =
+                    await fetch(form.action, {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                if (!response.ok) {
+
+                    const err =
+                        await response.text();
+
+                    alert(err);
+
+                    return;
+                }
+
+                const disposition =
+                    response.headers.get('Content-Disposition') || '';
+
+                let fileName = 'download.zip';
+
+                const match =
+                    disposition.match(/filename[^;=\n]*=(?:UTF-8''|["']?)([^"';\n]*)/i);
+
+                if (match && match[1]) {
+
+                    fileName =
+                        decodeURIComponent(
+                            match[1].replace(/\+/g, ' ')
+                        );
+                }
+
+                const blob =
+                    await response.blob();
+
+                const url =
+                    window.URL.createObjectURL(blob);
+
+                const a =
+                    document.createElement('a');
+
+                a.href = url;
+
+                a.download = fileName;
+
+                document.body.appendChild(a);
+
+                a.click();
+
+                a.remove();
+
+                window.URL.revokeObjectURL(url);
+            }
+            catch (err) {
+
+                alert(err.message);
+            }
+            finally {
+
+                loading.style.display = 'none';
+
+                btn.disabled = false;
+            }
+        });
+    }
+
+    handleForm(
+        'form-step1',
+        'loading-step1',
+        'btn-step1'
+    );
+
+    handleForm(
+        'form-step2',
+        'loading-step2',
+        'btn-step2'
+    );
+</script>

@@ -25,11 +25,11 @@
                         </div>
 
                         <div class="mb-3 d-flex gap-2">
-                            <a href="@Url.Action("DownloadZip", "PdfRenamer", new { filePath = ViewBag.ZipPath })"
+                            <a href="@Url.Action("DownloadZip", "PdfRenamerPDFCu", new { filePath = ViewBag.ZipPath })"
                                class="btn btn-success btn-lg flex-fill">
                                 <i class="bi bi-download"></i> Tải về tất cả (@ViewBag.TotalFiles file)
                             </a>
-                            <a href="@Url.Action("Upload", "PdfRenamer")"
+                            <a href="@Url.Action("Upload", "PdfRenamerPDFCu")"
                                class="btn btn-secondary btn-lg">
                                 <i class="bi bi-arrow-counterclockwise"></i> Đổi tên file mới
                             </a>
@@ -109,8 +109,8 @@
                         }
                     }
 
-                    <form method="post" enctype="multipart/form-data" asp-action="ProcessFiles" asp-controller="PdfRenamer" class="mt-4">
-                       
+                    <form method="post" enctype="multipart/form-data" asp-action="ProcessFiles" asp-controller="PdfRenamerPDFCu" class="mt-4">
+
                         <!-- Option 1: Multiple PDF Files -->
                         <div class="mb-4">
                             <label for="pdfFiles" class="form-label">

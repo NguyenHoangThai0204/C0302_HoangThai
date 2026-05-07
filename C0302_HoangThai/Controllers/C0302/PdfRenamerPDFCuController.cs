@@ -15,7 +15,7 @@ using SixLabors.ImageSharp.Processing;
 
 namespace C0302_HoangThai.Controllers.C0302
 {
-    public class PdfRenamerController : Controller
+    public class PdfRenamerPDFCuController : Controller
     {
         [HttpGet]
         public IActionResult Upload()
@@ -360,7 +360,22 @@ namespace C0302_HoangThai.Controllers.C0302
 
             return cleaned.ToUpper();
         }
+        [HttpGet]
+        public IActionResult DownloadZip(string filePath)
+        {
+            if (string.IsNullOrEmpty(filePath) || !System.IO.File.Exists(filePath))
+            {
+                return NotFound("File không tồn tại hoặc đã bị xóa.");
+            }
 
+            var fileName = Path.GetFileName(filePath);
+            var fileBytes = System.IO.File.ReadAllBytes(filePath);
+
+            // Xóa file tạm sau khi đọc xong
+            try { System.IO.File.Delete(filePath); } catch { }
+
+            return File(fileBytes, "application/zip", fileName);
+        }
         private string SanitizeFileName(string fileName)
         {
             if (string.IsNullOrWhiteSpace(fileName))
