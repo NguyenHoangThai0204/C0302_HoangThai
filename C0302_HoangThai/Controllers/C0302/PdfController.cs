@@ -412,24 +412,21 @@ namespace C0302_HoangThai.Controllers.C0302
             if (string.IsNullOrWhiteSpace(text))
                 return null;
 
-            string t = text.ToUpperInvariant();
+            string cleanText = Regex.Replace(text, @"[ \t]+", " ");
 
-            foreach (var rawLine in t.Split('\n'))
+            // Lấy 15 dòng đầu (bao gồm cả dòng trống OCR sinh ra)
+            var lines = cleanText
+                .Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
+                .Take(15);
+
+            foreach (var line in lines)
             {
-                string line = rawLine.Trim();
-
-                bool hasLabel =
-                    Regex.IsMatch(
-                        line,
-                        @"S.{0,3}T.{0,3}KHAI",
-                        RegexOptions.IgnoreCase);
-
-                if (!hasLabel)
+                // Dòng phải có chữ "khai" (dù bị OCR sai "td khai", "to khai"...)
+                if (!Regex.IsMatch(line, @"khai", RegexOptions.IgnoreCase))
                     continue;
 
-                var m =
-                    Regex.Match(line, @"\b(\d{12})\b");
-
+                // Lấy số đầu tiên có 10-13 chữ số trong dòng đó
+                var m = Regex.Match(line, @"\b(\d{10,13})\b");
                 if (m.Success)
                     return m.Groups[1].Value;
             }
