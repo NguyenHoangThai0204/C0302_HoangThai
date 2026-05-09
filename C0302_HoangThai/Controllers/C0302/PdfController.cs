@@ -355,17 +355,17 @@ namespace C0302_HoangThai.Controllers.C0302
 
                 byte[] raw = pgReader.GetImage();
 
-                int cropH = (int)(h * 0.25f);
+                int cropH = (int)(h * 0.18f);
 
                 byte[] png;
 
-                using (var img = Image.LoadPixelData<Rgba32>(raw, w, h))
+                using (var img = Image.LoadPixelData<Bgra32>(raw, w, h))
                 {
                     img.Mutate(ctx => ctx
                         .Crop(new Rectangle(0, 0, w, cropH))
-                        .Resize(w * 2, cropH * 2)
+                        .Resize(w * 3, cropH * 3)
                         .Grayscale()
-                        .BinaryThreshold(0.5f));
+                        .BinaryThreshold(0.4f));
 
                     using var ms = new MemoryStream();
 
@@ -412,28 +412,129 @@ namespace C0302_HoangThai.Controllers.C0302
             if (string.IsNullOrWhiteSpace(text))
                 return null;
 
-            string cleanText = Regex.Replace(text, @"[ \t]+", " ");
+            string cleanText =
+                Regex.Replace(text, @"[ \t]+", " ");
 
-            // Lấy 15 dòng đầu (bao gồm cả dòng trống OCR sinh ra)
-            var lines = cleanText
-                .Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
-                .Take(15);
+            Console.WriteLine("=== OCR TEXT ===");
+            Console.WriteLine(cleanText);
+            Console.WriteLine("=== ====== ===");
 
-            foreach (var line in lines)
+            string firstPart =
+                cleanText.Substring(0, Math.Min(2500, cleanText.Length));
+
+            // =====================================================
+            // ƯU TIÊN:
+            // tìm gần chữ "to khai"
+            // =====================================================
+
+            var nearKhai = Regex.Matches(
+                firstPart,
+                @"(?i)(to\s*khai|td\s*khai|tkhai|khai).{0,80}");
+
+            foreach (Match area in nearKhai)
             {
-                // Dòng phải có chữ "khai" (dù bị OCR sai "td khai", "to khai"...)
-                if (!Regex.IsMatch(line, @"khai", RegexOptions.IgnoreCase))
+                string block = area.Value;
+
+                Console.WriteLine("BLOCK:");
+                Console.WriteLine(block);
+
+                var nums = Regex.Matches(block, @"[0-9OIlSB]{10,15}");
+
+                foreach (Match m in nums)
+                {
+                    string raw = m.Value;
+
+                    string fixedValue = raw
+                        .Replace("O", "0")
+                        .Replace("o", "0")
+                        .Replace("I", "1")
+                        .Replace("l", "1")
+                        .Replace("|", "1")
+                        .Replace("B", "8")
+                        .Replace("S", "5");
+
+                    string digits =
+                        Regex.Replace(fixedValue, @"\D", "");
+
+                    Console.WriteLine($"RAW={raw}");
+                    Console.WriteLine($"DIGITS={digits}");
+
+                    if (digits.Length != 12)
+                        continue;
+
+                    // bỏ năm
+                    if (
+                        digits.StartsWith("2024") ||
+                        digits.StartsWith("2025") ||
+                        digits.StartsWith("2026"))
+                        continue;
+
+                    // bỏ MST
+                    if (
+                        digits.StartsWith("030") ||
+                        digits.StartsWith("010"))
+                        continue;
+
+                    // số tờ khai VN
+                    if (
+                        digits.StartsWith("10") ||
+                        digits.StartsWith("11"))
+                    {
+                        Console.WriteLine($"FOUND = {digits}");
+                        return digits;
+                    }
+                }
+            }
+
+            // =====================================================
+            // FALLBACK:
+            // tìm toàn trang
+            // =====================================================
+
+            var allNums =
+                Regex.Matches(firstPart, @"[0-9OIlSB]{10,15}");
+
+            foreach (Match m in allNums)
+            {
+                string raw = m.Value;
+
+                string fixedValue = raw
+                    .Replace("O", "0")
+                    .Replace("o", "0")
+                    .Replace("I", "1")
+                    .Replace("l", "1")
+                    .Replace("|", "1")
+                    .Replace("B", "8")
+                    .Replace("S", "5");
+
+                string digits =
+                    Regex.Replace(fixedValue, @"\D", "");
+
+                if (digits.Length != 12)
                     continue;
 
-                // Lấy số đầu tiên có 10-13 chữ số trong dòng đó
-                var m = Regex.Match(line, @"\b(\d{10,13})\b");
-                if (m.Success)
-                    return m.Groups[1].Value;
+                if (
+                    digits.StartsWith("2024") ||
+                    digits.StartsWith("2025") ||
+                    digits.StartsWith("2026"))
+                    continue;
+
+                if (
+                    digits.StartsWith("030") ||
+                    digits.StartsWith("010"))
+                    continue;
+
+                if (
+                    digits.StartsWith("10") ||
+                    digits.StartsWith("11"))
+                {
+                    Console.WriteLine($"FOUND FALLBACK = {digits}");
+                    return digits;
+                }
             }
 
             return null;
         }
-
         // ════════════════════════════════════════════════
         // BUILD EXCEL
         // ════════════════════════════════════════════════
