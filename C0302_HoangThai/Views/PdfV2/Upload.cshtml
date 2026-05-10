@@ -1,0 +1,348 @@
+﻿@{
+    ViewData["Title"] = "Tách PDF theo Dãy số trang V2";
+}
+
+<style>
+    body {
+        background: #f0f4ff;
+        font-family: Arial, sans-serif;
+    }
+
+    .wrapper {
+        margin: auto;
+        padding: 0 16px;
+        display: flex;
+    }
+
+    .page-title {
+        font-size: 22px;
+        font-weight: bold;
+        text-align: center;
+        color: #1a237e;
+        margin: 10px;
+    }
+
+    .card-box {
+        background: white;
+        border-radius: 14px;
+        padding: 28px 32px;
+        margin-bottom: 28px;
+        box-shadow: 0 4px 18px rgba(0,0,0,0.08);
+    }
+
+    .card-title {
+        font-size: 18px;
+        font-weight: bold;
+        margin-bottom: 6px;
+        color: #283593;
+    }
+
+    .card-sub {
+        color: #777;
+        font-size: 14px;
+        margin-bottom: 20px;
+    }
+
+    label {
+        font-weight: bold;
+        font-size: 14px;
+        color: #333;
+        display: block;
+        margin-bottom: 6px;
+    }
+
+    .file-input,
+    .text-input {
+        width: 100%;
+        padding: 11px 14px;
+        border: 2px dashed #b0bec5;
+        border-radius: 10px;
+        background: #fafafa;
+        font-size: 14px;
+        box-sizing: border-box;
+        margin-bottom: 16px;
+        transition: border-color .2s;
+    }
+
+    .text-input {
+        border-style: solid;
+        border-color: #cfd8dc;
+    }
+
+        .file-input:focus,
+        .text-input:focus {
+            outline: none;
+            border-color: #3f51b5;
+        }
+
+    .hint {
+        font-size: 12px;
+        color: #888;
+        margin-top: -12px;
+        margin-bottom: 16px;
+    }
+
+    .btn-submit {
+        width: 100%;
+        padding: 13px;
+        border: none;
+        border-radius: 10px;
+        background: #3f51b5;
+        color: white;
+        font-size: 15px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: background .2s;
+    }
+
+        .btn-submit:hover {
+            background: #283593;
+        }
+
+        .btn-submit:disabled {
+            background: #90a4ae;
+            cursor: not-allowed;
+        }
+
+    .loading {
+        display: none;
+        margin-top: 14px;
+        text-align: center;
+        color: #555;
+        font-size: 14px;
+    }
+
+    .spinner {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 3px solid #ccc;
+        border-top-color: #3f51b5;
+        border-radius: 50%;
+        animation: spin .7s linear infinite;
+        vertical-align: middle;
+        margin-right: 6px;
+    }
+
+    @@keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    ul.note {
+        margin-top: 18px;
+        padding-left: 20px;
+        color: #555;
+        font-size: 13px;
+    }
+
+        ul.note li {
+            margin-bottom: 6px;
+        }
+
+    .badge-new {
+        background: #e8f5e9;
+        color: #2e7d32;
+        border-radius: 6px;
+        font-size: 11px;
+        padding: 2px 7px;
+        font-weight: bold;
+        vertical-align: middle;
+        margin-left: 6px;
+    }
+
+    .divider {
+        border: none;
+        border-top: 1px solid #e8eaf6;
+        margin: 22px 0;
+    }
+</style>
+
+<div class="page-title">📄 Tách & Đổi tên PDF — Phiên bản V2</div>
+
+<div class="wrapper">
+
+
+    <!-- ══════════ BƯỚC 1 ══════════ -->
+    <div class="card-box" style="width:49%; margin:auto;">
+
+        <div class="card-title">
+            ✂️ Bước 1 — Tách PDF theo dãy trang
+            <span class="badge-new">V2</span>
+        </div>
+
+        <div class="card-sub">
+            Nhập dãy số trang bắt đầu của từng file con, hệ thống tự OCR và đặt tên theo số tờ khai
+        </div>
+
+        <form id="form-step1"
+              asp-action="SplitByRange"
+              asp-controller="PdfV2"
+              method="post"
+              enctype="multipart/form-data">
+
+            <!-- File PDF -->
+            <label>📁 Chọn file PDF gốc</label>
+            <input type="file"
+                   name="file"
+                   class="file-input"
+                   accept=".pdf"
+                   required />
+
+            <!-- Dãy số trang -->
+            <label>🔢 Dãy số trang bắt đầu (cách nhau bằng dấu phẩy)</label>
+            <input type="text"
+                   name="pageRanges"
+                   class="text-input"
+                   placeholder=" ➜ <b>1,10,15,22</b> → File 1: trang 1–9 &nbsp;|&nbsp; File 2: trang 10–14 &nbsp;|&nbsp; File 3: trang 15–21 &nbsp;|&nbsp; File 4: trang 22–hết"
+                   pattern="^(\s*\d+\s*)(,\s*\d+\s*)*$"
+                   title="Chỉ nhập số nguyên, cách nhau bằng dấu phẩy"
+                   required />
+            @* <div class="hint">
+               
+            </div> *@
+
+            <button class="btn-submit" id="btn-step1">
+                🚀 Bắt đầu tách PDF
+            </button>
+
+            <div class="loading" id="loading-step1">
+                <span class="spinner"></span>
+                Đang tách PDF và nhận dạng số tờ khai... vui lòng chờ
+            </div>
+
+        </form>
+
+        <ul class="note">
+             <li>Nếu 3 trang có số tờ khai <b>khác nhau</b> hoặc <b>không tìm thấy</b> → đặt tên <b>unknown_N</b></li>
+            <li>Kết quả tải về gồm: <b>các file PDF đã tách</b> + <b>Mapping.xlsx</b></li>
+        </ul>
+
+    </div>
+
+    <!-- ══════════ BƯỚC 2 ══════════ -->
+    <div class="card-box" style="width:49%; margin:auto;">
+
+        <div class="card-title">📝 Bước 2 — Đổi tên PDF</div>
+
+        <div class="card-sub">
+            Upload ZIP đã tách + file Excel mapping đã điền cột "Tên mới"
+        </div>
+
+        <form id="form-step2"
+              asp-action="RenameFiles"
+              asp-controller="PdfV2"
+              method="post"
+              enctype="multipart/form-data">
+
+            <label>📦 ZIP PDF (từ Bước 1)</label>
+            <input type="file"
+                   name="pdfZip"
+                   class="file-input"
+                   accept=".zip"
+                   required />
+
+            <label>📊 Excel Mapping (đã điền cột "Tên mới")</label>
+            <input type="file"
+                   name="mappingExcel"
+                   class="file-input"
+                   accept=".xlsx"
+                   required />
+
+            <button class="btn-submit" id="btn-step2">
+                🔄 Đổi tên PDF
+            </button>
+
+            <div class="loading" id="loading-step2">
+                <span class="spinner"></span>
+                Đang đổi tên file...
+            </div>
+
+        </form>
+
+        <ul class="note">
+            <li>Mở Mapping.xlsx → điền cột <b>"Tên mới"</b> cho từng file (đặc biệt các file <em>unknown_N</em>)</li>
+            <li>Kết quả: <b>Số tờ khai - Tên mới.pdf</b></li>
+        </ul>
+
+    </div>
+
+</div>
+
+<script>
+    function handleForm(formId, loadingId, btnId) {
+
+        const form    = document.getElementById(formId);
+        const loading = document.getElementById(loadingId);
+        const btn     = document.getElementById(btnId);
+
+        form.addEventListener('submit', async function (e) {
+
+            e.preventDefault();
+
+            // Validate pattern thủ công cho trường hợp trình duyệt bỏ qua
+            const rangeInput = form.querySelector('[name="pageRanges"]');
+            if (rangeInput) {
+                const val = rangeInput.value.trim();
+                if (!/^(\s*\d+\s*)(,\s*\d+\s*)*$/.test(val)) {
+                    alert('Dãy số trang không hợp lệ. Ví dụ: 1,10,15,22');
+                    return;
+                }
+                const nums = val.split(',').map(s => parseInt(s.trim()));
+                if (nums[0] !== 1) {
+                    alert('Dãy số trang phải bắt đầu bằng 1.');
+                    return;
+                }
+            }
+
+            loading.style.display = 'block';
+            btn.disabled = true;
+
+            try {
+                const formData = new FormData(form);
+
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const err = await response.text();
+                    alert('Lỗi: ' + err);
+                    return;
+                }
+
+                // Lấy tên file từ header
+                const disposition = response.headers.get('Content-Disposition') || '';
+                let fileName = 'download.zip';
+                const match = disposition.match(
+                    /filename[^;=\n]*=(?:UTF-8''|["']?)([^"';\n]*)/i
+                );
+                if (match && match[1]) {
+                    fileName = decodeURIComponent(match[1].replace(/\+/g, ' '));
+                }
+
+                // Tải file về
+                const blob = await response.blob();
+                const url  = window.URL.createObjectURL(blob);
+                const a    = document.createElement('a');
+                a.href     = url;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(url);
+
+            } catch (err) {
+                alert('Lỗi kết nối: ' + err.message);
+            } finally {
+                loading.style.display = 'none';
+                btn.disabled = false;
+            }
+        });
+    }
+
+    handleForm('form-step1', 'loading-step1', 'btn-step1');
+    handleForm('form-step2', 'loading-step2', 'btn-step2');
+</script>

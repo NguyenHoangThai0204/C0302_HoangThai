@@ -9,16 +9,25 @@
     }
 
     .wrapper {
-        max-width: 700px;
-        margin: 40px auto;
+        margin: auto;
+        padding: 0 16px;
+        display: flex;
+    }
+
+    .page-title {
+        font-size: 22px;
+        font-weight: bold;
+        text-align: center;
+        color: #1a237e;
+        margin: 10px;
     }
 
     .card-box {
         background: white;
         border-radius: 14px;
-        padding: 28px;
-        margin-bottom: 30px;
-        box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+        padding: 28px 32px;
+        margin-bottom: 28px;
+        box-shadow: 0 4px 18px rgba(0,0,0,0.08);
     }
 
     .title {
@@ -76,10 +85,12 @@
         }
 </style>
 
+<div class="page-title">📄 Tách & Đổi tên PDF — Phiên bản V1</div>
+
 <div class="wrapper">
 
     <!-- STEP 1 -->
-    <div class="card-box">
+    <div class="card-box" style="width:49%; margin:auto;">
 
         <div class="title">
             📄 Bước 1 — Tách PDF
@@ -119,7 +130,7 @@
     </div>
 
     <!-- STEP 2 -->
-    <div class="card-box">
+    <div class="card-box" style="width:49%; margin:auto;">
 
         <div class="title">
             📝 Bước 2 — Đổi tên PDF
