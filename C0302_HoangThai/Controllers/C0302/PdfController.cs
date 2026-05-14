@@ -1089,6 +1089,118 @@ namespace C0302_HoangThai.Controllers.C0302
                 .Replace(".", "")
                 .Replace(",", "");
         }
+        // =========================================================
+        // POST: Doi ten PDF
+        // Ghep: TenMoi - TenDatFile.pdf
+        // =========================================================
+
+        [HttpPost]
+        [RequestSizeLimit(500_000_000)]
+        [RequestFormLimits(MultipartBodyLengthLimit = 500_000_000)]
+        public IActionResult RenameFiles(IFormFile pdfZip, IFormFile mappingExcel)
+        {
+            if (pdfZip == null || mappingExcel == null)
+                return BadRequest("Vui long chon du 2 file.");
+
+            string tempFolder =
+                Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+
+            Directory.CreateDirectory(tempFolder);
+
+            try
+            {
+                // Doc Excel mapping
+                string xlPath = Path.Combine(tempFolder, "mapping.xlsx");
+
+                using (var fs = new FileStream(xlPath, FileMode.Create))
+                    mappingExcel.CopyTo(fs);
+
+                // Dict: TenFileCu -> (TenMoi, TenDatFile)
+                var mapping = new Dictionary<string, (string TenMoi, string TenDatFile)>(
+                    StringComparer.OrdinalIgnoreCase);
+
+                using (var wb = new XLWorkbook(xlPath))
+                {
+                    var ws = wb.Worksheet(1);
+                    int row = 2;
+
+                    while (true)
+                    {
+
+                        var cellFile = ws.Cell(row, 1).GetString().Trim();
+                        var cellTenDatFile = ws.Cell(row, 2).GetString().Trim();
+                        var cellTenMoi = ws.Cell(row, 3).GetString().Trim();
+                       
+
+                        if (string.IsNullOrEmpty(cellFile)) break;
+
+                        if (!string.IsNullOrEmpty(cellTenMoi))
+                            mapping[cellFile] = (cellTenMoi, cellTenDatFile);
+
+                        row++;
+                    }
+                }
+
+                // Giai nen ZIP + doi ten + nen lai
+                string extractDir = Path.Combine(tempFolder, "extracted");
+                Directory.CreateDirectory(extractDir);
+
+                string zipPath = Path.Combine(tempFolder, "upload.zip");
+
+                using (var fs = new FileStream(zipPath, FileMode.Create))
+                    pdfZip.CopyTo(fs);
+
+                ZipFile.ExtractToDirectory(zipPath, extractDir);
+
+                string outDir = Path.Combine(tempFolder, "renamed");
+                Directory.CreateDirectory(outDir);
+
+                foreach (var srcFile in Directory.GetFiles(extractDir))
+                {
+                    string originalName = Path.GetFileName(srcFile);
+                    string newName;
+
+                    if (originalName.EndsWith(".xlsx",
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        newName = originalName;
+                    }
+                    else if (mapping.TryGetValue(originalName, out var info))
+                    {
+                        // TenMoi - TenDatFile.pdf
+                        // Neu TenDatFile trong Excel bi bo trong -> dung ten file goc
+                        string tenDatFile = string.IsNullOrEmpty(info.TenDatFile)
+                            ? Path.GetFileNameWithoutExtension(originalName)
+                            : info.TenDatFile;
+
+                        newName = $"{info.TenMoi}_{tenDatFile}.pdf";
+                    }
+                    else
+                    {
+                        newName = originalName;
+                    }
+
+                    System.IO.File.Copy(
+                        srcFile,
+                        Path.Combine(outDir, SanitizeFileName(newName)));
+                }
+
+                string outZip = Path.Combine(
+                    tempFolder,
+                    $"Renamed_{DateTime.Now:yyyyMMddHHmmss}.zip");
+
+                ZipFile.CreateFromDirectory(outDir, outZip);
+
+                return PhysicalFile(
+                    outZip,
+                    "application/zip",
+                    Path.GetFileName(outZip));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.ToString());
+            }
+        }
 
         // =========================================================
         // SIMILAR

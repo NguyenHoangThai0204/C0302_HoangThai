@@ -37,9 +37,12 @@
     <PackageReference Include="itext7" Version="7.1.4" />
     <PackageReference Include="itext7.bouncy-castle-adapter" Version="9.5.0" />
     <PackageReference Include="itext7.pdfhtml" Version="6.3.1" />
+    <PackageReference Include="itextsharp.4.1.6.0" Version="4.1.6" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.9" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.9" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    <PackageReference Include="OpenCvSharp4" Version="4.9.0.20240103" />
+    <PackageReference Include="OpenCvSharp4.runtime.win" Version="4.9.0.20240103" />
     <PackageReference Include="PDFiumSharpV2" Version="1.1.4" />
     <PackageReference Include="PdfiumViewer" Version="2.13.0" />
     <PackageReference Include="PdfiumViewer.Native.x86_64.v8-xfa" Version="2018.4.8.256" />

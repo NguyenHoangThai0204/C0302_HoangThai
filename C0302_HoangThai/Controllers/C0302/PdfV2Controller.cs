@@ -249,8 +249,8 @@ namespace C0302_HoangThai.Controllers.C0302
                     {
                         // Col 1: Ten file  Col 6: TenMoi  Col 7: TenDatFile
                         var cellFile = ws.Cell(row, 1).GetString().Trim();
-                        var cellTenMoi = ws.Cell(row, 6).GetString().Trim();
-                        var cellTenDatFile = ws.Cell(row, 7).GetString().Trim();
+                        var cellTenDatFile = ws.Cell(row, 6).GetString().Trim();
+                        var cellTenMoi = ws.Cell(row, 7).GetString().Trim();
 
                         if (string.IsNullOrEmpty(cellFile)) break;
 
@@ -293,7 +293,7 @@ namespace C0302_HoangThai.Controllers.C0302
                             ? Path.GetFileNameWithoutExtension(originalName)
                             : info.TenDatFile;
 
-                        newName = $"{info.TenMoi} - {tenDatFile}.pdf";
+                        newName = $"{info.TenMoi}_{tenDatFile}.pdf";
                     }
                     else
                     {
