@@ -1,4 +1,156 @@
 ﻿@{
+    ViewData["Title"] = "Tách & Đặt tên PDF theo Số tờ khai";
+}
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+
+            {{!-- BƯỚC 1 --}}
+            <div class="card shadow mb-4">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-scissors"></i>
+                        Bước 1 — Upload PDF lớn → Tải ZIP (chunks + Excel mapping)
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data"
+                          asp-action="Step1_SplitAndExcel" asp-controller="PdfRenamer3Page"
+                          id="form-step1">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Chọn file PDF lớn (nhiều tờ khai gộp lại):</label>
+                            <input type="file" class="form-control" name="bigPdf"
+                                   accept=".pdf" id="input-big-pdf" required>
+                            <div class="form-text text-muted">
+                                Hệ thống tách <strong>mỗi 3 trang</strong> thành 1 file, đọc <strong>Số tờ khai</strong>
+                                và xuất Excel để bạn kiểm tra / sửa tên trước khi đổi tên chính thức.
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-danger flex-fill" id="btn-step1">
+                                <i class="bi bi-download"></i> Tách & Tải ZIP + Excel
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" onclick="resetStep1()">
+                                <i class="bi bi-arrow-counterclockwise"></i> Làm mới
+                            </button>
+                        </div>
+                        <div id="step1-loading" class="text-center mt-3" style="display:none">
+                            <div class="spinner-border spinner-border-sm text-danger me-2"></div>
+                            <span class="text-muted">Đang tách PDF và đọc số tờ khai... Vui lòng chờ</span>
+                        </div>
+                    </form>
+                    <ul class="small text-muted mt-3 mb-0">
+                        <li>ZIP tải về gồm: các file <code>chunk_001.pdf</code>, <code>chunk_002.pdf</code>... và <code>Mapping.xlsx</code></li>
+                        <li>Mở Excel → kiểm tra cột <strong>Số tờ khai</strong>, điền <span class="badge" style="background:#FFF2CC;color:#333">Tên mới</span> nếu muốn đổi khác</li>
+                        <li>Để trống cột Tên mới → hệ thống tự dùng Số tờ khai làm tên file</li>
+                        <li>File <span class="text-danger">Unknown</span> = không đọc được → cần điền tên thủ công</li>
+                    </ul>
+                </div>
+            </div>
+
+            {{!-- BƯỚC 2 --}}
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-pencil-square"></i>
+                        Bước 2 — Upload ZIP + Excel đã điền → Tải ZIP PDF đổi tên
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data"
+                          asp-action="Step2_RenameFiles" asp-controller="PdfRenamer3Page"
+                          id="form-step2">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">ZIP chứa PDF chunks (từ Bước 1):</label>
+                            <input type="file" class="form-control" name="pdfZip"
+                                   accept=".zip" id="input-zip2">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Excel Mapping (đã kiểm tra / điền Tên mới):</label>
+                            <input type="file" class="form-control" name="mappingExcel"
+                                   accept=".xlsx" id="input-excel2">
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary flex-fill" id="btn-step2">
+                                <i class="bi bi-arrow-repeat"></i> Đổi tên & Tải ZIP
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" onclick="resetStep2()">
+                                <i class="bi bi-arrow-counterclockwise"></i> Làm mới
+                            </button>
+                        </div>
+                        <div id="step2-loading" class="text-center mt-3" style="display:none">
+                            <div class="spinner-border spinner-border-sm text-primary me-2"></div>
+                            <span class="text-muted">Đang đổi tên và đóng gói ZIP... Vui lòng chờ</span>
+                        </div>
+                    </form>
+                    <ul class="small text-muted mt-3 mb-0">
+                        <li>ZIP đầu vào là file ZIP tải về từ Bước 1 (có thể xóa file Mapping.xlsx bên trong hoặc giữ lại — không ảnh hưởng)</li>
+                        <li>Cột <span class="badge" style="background:#FFF2CC;color:#333">Tên mới</span> để trống → tự dùng Số tờ khai đọc được ở cột 2</li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+
+<script>
+    function handleFormSubmit(formId, spinnerId, btnId) {
+        const form = document.getElementById(formId);
+        form.addEventListener('submit', async function (e) {
+            e.preventDefault();
+            document.getElementById(spinnerId).style.display = 'block';
+            document.getElementById(btnId).disabled = true;
+            try {
+                const formData = new FormData(form);
+                const response = await fetch(form.action, { method: 'POST', body: formData });
+                if (!response.ok) {
+                    const errText = await response.text();
+                    alert('Lỗi: ' + errText);
+                    return;
+                }
+                const disposition = response.headers.get('Content-Disposition') || '';
+                let fileName = 'download';
+                const match = disposition.match(/filename[^;=\n]*=(?:UTF-8''|["']?)([^"';\n]*)/i);
+                if (match && match[1]) fileName = decodeURIComponent(match[1].replace(/\+/g, ' '));
+                const blob = await response.blob();
+                const url  = URL.createObjectURL(blob);
+                const a    = document.createElement('a');
+                a.href = url; a.download = fileName;
+                document.body.appendChild(a); a.click(); a.remove();
+                URL.revokeObjectURL(url);
+            } catch (err) {
+                alert('Có lỗi xảy ra: ' + err.message);
+            } finally {
+                document.getElementById(spinnerId).style.display = 'none';
+                document.getElementById(btnId).disabled = false;
+            }
+        });
+    }
+
+    handleFormSubmit('form-step1', 'step1-loading', 'btn-step1');
+    handleFormSubmit('form-step2', 'step2-loading', 'btn-step2');
+
+    function resetStep1() {
+        document.getElementById('input-big-pdf').value = '';
+        document.getElementById('step1-loading').style.display = 'none';
+        document.getElementById('btn-step1').disabled = false;
+    }
+    function resetStep2() {
+        document.getElementById('input-zip2').value   = '';
+        document.getElementById('input-excel2').value = '';
+        document.getElementById('step2-loading').style.display = 'none';
+        document.getElementById('btn-step2').disabled = false;
+    }
+</script>
+
+
+
+
+@* @{
     ViewData["Title"] = "Đọc Số tờ khai PDF";
 }
 
@@ -163,4 +315,4 @@
         document.getElementById('step2-loading').style.display = 'none';
         document.getElementById('btn-step2').disabled = false;
     }
-</script>
+</script> *@
