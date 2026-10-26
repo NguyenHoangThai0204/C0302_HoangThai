@@ -1,0 +1,238 @@
+﻿@{
+    ViewData["Title"] = "Tách & Đặt tên PDF NSNN";
+}
+
+<style>
+    .wrapper {
+        margin: auto;
+        padding: 0 16px;
+        display: flex;
+        gap: 16px;
+        align-items: flex-start;
+    }
+
+    @@media (max-width: 900px) {
+        .wrapper {
+            flex-direction: column;
+        }
+
+            .wrapper > .card {
+                width: 100% !important;
+            }
+    }
+</style>
+
+<div class="container-fluid mt-4">
+    <div class="wrapper">
+
+        @* ══════════ BƯỚC 1 ══════════ *@
+        <div class="card shadow mb-4" style="width:49%;">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-scissors"></i>
+                    Bước 1 — Tách PDF lớn → ZIP + Excel mapping
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data"
+                      asp-action="Step1_SplitAndExcel" asp-controller="PdfRenamerPDFNSNN"
+                      id="form-step1">
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">File PDF lớn (nhiều bộ hồ sơ gộp lại):</label>
+                        <input type="file" class="form-control" name="bigPdf"
+                               accept=".pdf" id="input-big-pdf" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">
+                            <i class="bi bi-list-check"></i> Dãy trang bắt đầu của mỗi bộ
+                        </label>
+                        <input type="text" class="form-control" name="pageRanges"
+                               pattern="^(\s*\d+\s*)(,\s*\d+\s*)*$"
+                               placeholder="VD: 1,5  →  Bộ 1: trang 1–4  |  Bộ 2: trang 5–hết"
+                               id="input-page-ranges" required>
+                        <div class="form-text text-muted">Phải bắt đầu bằng <code>1</code>, các số cách nhau bằng dấu phẩy.</div>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-4">
+                            <label class="form-label fw-semibold">
+                                <i class="bi bi-list-ol"></i> Số trang đọc
+                            </label>
+                            <input type="number" class="form-control" name="pagesToRead"
+                                   min="1" max="20" step="1" value="3"
+                                   id="input-pages-to-read">
+                        </div>
+                        <div class="col-8">
+                            <label class="form-label fw-semibold d-block">
+                                <i class="bi bi-arrow-down-up"></i> Vị trí đọc
+                            </label>
+                            <div class="form-check form-check-inline mt-2">
+                                <input class="form-check-input" type="radio"
+                                       name="readPosition" value="top" id="pos-top" checked>
+                                <label class="form-check-label" for="pos-top">Đầu</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio"
+                                       name="readPosition" value="bottom" id="pos-bottom">
+                                <label class="form-check-label" for="pos-bottom">Cuối</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio"
+                                       name="readPosition" value="both" id="pos-both">
+                                <label class="form-check-label text-primary fw-bold" for="pos-both">Cả hai</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-warning small mb-3">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <strong>Khuyên dùng:</strong> Chọn <strong>"Cả hai"</strong> nếu bạn không chắc số tờ khai nằm ở đầu hay cuối file. Hệ thống sẽ tự động tìm ở cả 2 đầu để kết quả chính xác nhất.
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-danger flex-fill" id="btn-step1">
+                            <i class="bi bi-download"></i> Tách & Tải ZIP + Excel
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="resetStep1()">
+                            <i class="bi bi-arrow-counterclockwise"></i> Làm mới
+                        </button>
+                    </div>
+
+                    <div id="step1-loading" class="text-center mt-3" style="display:none">
+                        <div class="spinner-border spinner-border-sm text-danger me-2"></div>
+                        <span class="text-muted">Đang tách PDF và đọc số tờ khai... Vui lòng chờ</span>
+                    </div>
+                </form>
+
+                <ul class="small text-muted mt-3 mb-0">
+                    <li>ZIP gồm: các file PDF đã tách (<code>[SoTK]_NSNN.pdf</code>) + <code>Mapping.xlsx</code></li>
+                    <li>Nếu số tờ khai bị thiếu 1 số 0 ở cuối, hệ thống sẽ tự động bù vào cho đủ 12 số.</li>
+                </ul>
+            </div>
+        </div>
+
+        @* ══════════ BƯỚC 2 ══════════ *@
+        <div class="card shadow mb-4" style="width:49%;">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-pencil-square"></i>
+                    Bước 2 — Upload ZIP + Excel đã điền → ZIP PDF đổi tên
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data"
+                      asp-action="Step2_RenameFiles" asp-controller="PdfRenamerPDFNSNN"
+                      id="form-step2">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">ZIP chứa PDF chunks (từ Bước 1):</label>
+                        <input type="file" class="form-control" name="pdfZip"
+                               accept=".zip" id="input-zip2">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Excel Mapping (đã kiểm tra / điền TenMoi):</label>
+                        <input type="file" class="form-control" name="mappingExcel"
+                               accept=".xlsx" id="input-excel2">
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary flex-fill" id="btn-step2">
+                            <i class="bi bi-arrow-repeat"></i> Đổi tên & Tải ZIP
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="resetStep2()">
+                            <i class="bi bi-arrow-counterclockwise"></i> Làm mới
+                        </button>
+                    </div>
+                    <div id="step2-loading" class="text-center mt-3" style="display:none">
+                        <div class="spinner-border spinner-border-sm text-primary me-2"></div>
+                        <span class="text-muted">Đang đổi tên và đóng gói ZIP... Vui lòng chờ</span>
+                    </div>
+                </form>
+                <ul class="small text-muted mt-3 mb-0">
+                    <li>Điền cột <strong>TenMoi</strong> để đổi tên → kết quả: <code>[TenMoi]_[TenDatFile].pdf</code></li>
+                    <li>Để trống cột TenMoi → giữ nguyên <code>[SoTK]_NSNN.pdf</code></li>
+                </ul>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+
+<script>
+    function handleFormSubmit(formId, spinnerId, btnId) {
+        const form = document.getElementById(formId);
+        form.addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            if (formId === 'form-step1') {
+                const ranges = document.getElementById('input-page-ranges').value.trim();
+                const n = parseInt(document.getElementById('input-pages-to-read').value || '3');
+
+                if (!/^(\s*\d+\s*)(,\s*\d+\s*)*$/.test(ranges)) {
+                    alert('Dãy số trang không hợp lệ. Ví dụ: 1,5');
+                    return;
+                }
+                const nums = ranges.split(',').map(s => parseInt(s.trim()));
+                if (nums[0] !== 1) {
+                    alert('Dãy số trang phải bắt đầu bằng 1.');
+                    return;
+                }
+                if (isNaN(n) || n < 1 || n > 20) {
+                    alert('Số trang đọc mỗi bộ phải từ 1 đến 20.');
+                    return;
+                }
+            }
+
+            document.getElementById(spinnerId).style.display = 'block';
+            document.getElementById(btnId).disabled = true;
+
+            try {
+                const formData = new FormData(form);
+                const response = await fetch(form.action, { method: 'POST', body: formData });
+
+                if (!response.ok) {
+                    const errText = await response.text();
+                    alert('Lỗi: ' + errText);
+                    return;
+                }
+
+                const disposition = response.headers.get('Content-Disposition') || '';
+                let fileName = 'download';
+                const match = disposition.match(/filename[^;=\n]*=(?:UTF-8''|["']?)([^"';\n]*)/i);
+                if (match && match[1]) fileName = decodeURIComponent(match[1].replace(/\+/g, ' '));
+
+                const blob = await response.blob();
+                const url  = URL.createObjectURL(blob);
+                const a    = document.createElement('a');
+                a.href = url; a.download = fileName;
+                document.body.appendChild(a); a.click(); a.remove();
+                URL.revokeObjectURL(url);
+            } catch (err) {
+                alert('Có lỗi xảy ra: ' + err.message);
+            } finally {
+                document.getElementById(spinnerId).style.display = 'none';
+                document.getElementById(btnId).disabled = false;
+            }
+        });
+    }
+
+    handleFormSubmit('form-step1', 'step1-loading', 'btn-step1');
+    handleFormSubmit('form-step2', 'step2-loading', 'btn-step2');
+
+    function resetStep1() {
+        document.getElementById('input-big-pdf').value       = '';
+        document.getElementById('input-page-ranges').value   = '';
+        document.getElementById('input-pages-to-read').value = '3';
+        document.getElementById('pos-top').checked = true;
+        document.getElementById('step1-loading').style.display = 'none';
+        document.getElementById('btn-step1').disabled = false;
+    }
+    function resetStep2() {
+        document.getElementById('input-zip2').value   = '';
+        document.getElementById('input-excel2').value = '';
+        document.getElementById('step2-loading').style.display = 'none';
+        document.getElementById('btn-step2').disabled = false;
+    }
+</script>

@@ -12,6 +12,7 @@
         margin: auto;
         padding: 0 16px;
         display: flex;
+        width: 90%;
     }
 
     .page-title {
@@ -159,8 +160,6 @@
     }
 </style>
 
-<div class="page-title">📄 Tách & Đổi tên PDF — Phiên bản V2</div>
-
 <div class="wrapper">
 
 
@@ -195,6 +194,7 @@
             <input type="text"
                    name="pageRanges"
                    class="text-input"
+                   autocomplete="off"
                    placeholder=" ➜ <b>1,10,15,22</b> → File 1: trang 1–9 &nbsp;|&nbsp; File 2: trang 10–14 &nbsp;|&nbsp; File 3: trang 15–21 &nbsp;|&nbsp; File 4: trang 22–hết"
                    pattern="^(\s*\d+\s*)(,\s*\d+\s*)*$"
                    title="Chỉ nhập số nguyên, cách nhau bằng dấu phẩy"

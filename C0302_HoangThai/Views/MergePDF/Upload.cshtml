@@ -1,0 +1,142 @@
+﻿@{
+    ViewData["Title"] = "Gộp nhiều PDF thành 1";
+}
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+
+            <div class="card shadow">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-file-earmark-pdf"></i>
+                        Gộp nhiều PDF thành 1 file duy nhất
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data"
+                          asp-action="MergePdfs" asp-controller="MergePDF"
+                          id="form-merge">
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">
+                                <i class="bi bi-files"></i> Chọn nhiều file PDF (giữ Ctrl để chọn nhiều):
+                            </label>
+                            <input type="file" class="form-control" name="pdfFiles"
+                                   accept=".pdf" multiple id="input-pdfs">
+                            <div class="form-text text-muted">
+                                Merge theo <strong>thứ tự file bạn chọn</strong> (thường là thứ tự sắp xếp trong dialog).
+                            </div>
+                        </div>
+
+                        <div class="text-center text-muted my-2">— hoặc / và —</div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">
+                                <i class="bi bi-file-zip"></i> Upload file ZIP chứa các PDF:
+                            </label>
+                            <input type="file" class="form-control" name="zipFile"
+                                   accept=".zip" id="input-zip">
+                            <div class="form-text text-muted">
+                                Tất cả <code>*.pdf</code> trong ZIP (kể cả trong thư mục con) sẽ được gộp
+                                theo thứ tự tên tự nhiên: <code>file2.pdf</code> trước <code>file10.pdf</code>.
+                            </div>
+                        </div>
+
+                        <div class="alert alert-info small mb-3">
+                            <i class="bi bi-info-circle"></i>
+                            Nếu dùng <strong>cả hai</strong>: PDF upload trước, sau đó đến PDF trong ZIP.
+                            File lỗi hoặc có mật khẩu sẽ bị bỏ qua (danh sách hiện cảnh báo sau khi gộp).
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-success flex-fill" id="btn-merge">
+                                <i class="bi bi-file-earmark-arrow-down"></i> Gộp & Tải PDF
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" onclick="resetMerge()">
+                                <i class="bi bi-arrow-counterclockwise"></i> Làm mới
+                            </button>
+                        </div>
+
+                        <div id="merge-loading" class="text-center mt-3" style="display:none">
+                            <div class="spinner-border spinner-border-sm text-success me-2"></div>
+                            <span class="text-muted">Đang gộp PDF... Vui lòng chờ</span>
+                        </div>
+                    </form>
+
+                    <ul class="small text-muted mt-3 mb-0">
+                        <li>Giữ nguyên chất lượng PDF gốc (không OCR, không nén lại).</li>
+                        <li>File lỗi / password-protected → tự động bỏ qua, các file còn lại vẫn được gộp.</li>
+                        <li>Dung lượng tối đa: <strong>500 MB</strong>.</li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+
+<script>
+    (function () {
+        const form    = document.getElementById('form-merge');
+        const loading = document.getElementById('merge-loading');
+        const btn     = document.getElementById('btn-merge');
+
+        form.addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const pdfs = document.getElementById('input-pdfs').files;
+            const zip  = document.getElementById('input-zip').files;
+            if (pdfs.length === 0 && zip.length === 0) {
+                alert('Vui lòng chọn ít nhất 1 file PDF hoặc 1 file ZIP.');
+                return;
+            }
+
+            loading.style.display = 'block';
+            btn.disabled = true;
+
+            try {
+                const formData = new FormData(form);
+                const response = await fetch(form.action, { method: 'POST', body: formData });
+
+                if (!response.ok) {
+                    const errText = await response.text();
+                    alert('Lỗi: ' + errText);
+                    return;
+                }
+
+                // Cảnh báo file bị bỏ qua (nếu có)
+                const skipped = response.headers.get('X-Skipped-Files');
+                if (skipped) {
+                    alert('Một số file bị bỏ qua:\n' + skipped);
+                }
+
+                const disposition = response.headers.get('Content-Disposition') || '';
+                let fileName = 'Merged.pdf';
+                const match = disposition.match(/filename[^;=\n]*=(?:UTF-8''|["']?)([^"';\n]*)/i);
+                if (match && match[1]) fileName = decodeURIComponent(match[1].replace(/\+/g, ' '));
+
+                const blob = await response.blob();
+                const url  = URL.createObjectURL(blob);
+                const a    = document.createElement('a');
+                a.href = url; a.download = fileName;
+                document.body.appendChild(a); a.click(); a.remove();
+                URL.revokeObjectURL(url);
+            } catch (err) {
+                alert('Có lỗi xảy ra: ' + err.message);
+            } finally {
+                loading.style.display = 'none';
+                btn.disabled = false;
+            }
+        });
+    })();
+
+    function resetMerge() {
+        document.getElementById('input-pdfs').value = '';
+        document.getElementById('input-zip').value  = '';
+        document.getElementById('merge-loading').style.display = 'none';
+        document.getElementById('btn-merge').disabled = false;
+    }
+</script>

@@ -46,19 +46,22 @@
                         <a href="#" class="nav-link dropdown-toggle text-white fw-bold" data-bs-toggle="dropdown" role="button" aria-expanded="false">
                             Quản lý
                         </a>
-                        <div class="dropdown-menu p-3" style="min-width: max-content;">
+                        <div class="dropdown-menu p-3" style="min-width:400px;">
                             <div class="row" style="z-index: 9999;">
-                                <a class="dropdown-item" asp-action="Upload" asp-controller="Excel">Tách excel</a>
-                                <a class="dropdown-item" asp-action="Upload" asp-controller="PdfRenamerPDFCu">Đổi tên file( 1 file 1 tờ)</a>
-                                <a class="dropdown-item" asp-action="Upload" asp-controller="PdfRenamer3Page">Đổi tên PDF nhập khẩu( 1 file 3 tờ)</a>
-                                <a class="dropdown-item" asp-action="Upload" asp-controller="MergeExcelGopFile">Gom lại các file excel</a>
-                                <a class="dropdown-item" asp-action="Upload" asp-controller="RenameExcelTachFile">Đổi tên và tách file excel</a>
-                                <a class="dropdown-item" asp-action="Upload" asp-controller="Pdf">
-                                    Tách PDF nhập khẩu v1
-                                </a>
+                                <a class="dropdown-item" asp-action="Upload" asp-controller="MergePDF"> Các file PDF => Gộp thành một file </a>
+                                <a class="dropdown-item" asp-action="Upload" asp-controller="Excel">HQ_File BOM excel tổng => Tách file => Đặt tên</a>
+                                
+                                <a class="dropdown-item" asp-action="Upload" asp-controller="PdfRenamerPDFCu"> POD_File tổng PDF => Tách file => Đặt tên  </a>
+                                <a class="dropdown-item" asp-action="Upload" asp-controller="PdfRenamerPDFNSNN"> NSNN_File tổng PDF => Tách file => Đặt tên </a>
+                                
+                                <a class="dropdown-item" asp-action="Upload" asp-controller="MergeExcelGopFile"> OUTBOUND_Gộp các file excel => Thành một file </a>
+                                <a class="dropdown-item" asp-action="Upload" asp-controller="RenameExcelTachFile"> OUTBOUND_File tổng excel => Tách file => Đặt tên </a>
+                                <a class="dropdown-item d-none" asp-action="Upload" asp-controller="Pdf"> Tách PDF nhập khẩu v1 </a>
                                 <a class="dropdown-item" asp-action="Upload" asp-controller="PdfV2">
-                                    Tách PDF nhập khẩu v2
+                                    TK NHẬP KHẨU_File tổng PDF => Tách file => Đặt tên
                                 </a>
+                                <a class="dropdown-item" asp-action="Upload" asp-controller="PdfRenamer3Page"> TK XUẤT KHẨU_File tổng PDF => Tách file => Đặt tên </a>
+
                             </div>
                         </div>
                     </div>
