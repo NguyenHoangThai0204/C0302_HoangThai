@@ -272,14 +272,16 @@ namespace C0302_HoangThai.Controllers.C0302
                     string newName;
                     if (mapping.TryGetValue(originalName, out var info))
                     {
-                        string tenDatFile = string.IsNullOrWhiteSpace(info.TenDatFile)
-                            ? Path.GetFileNameWithoutExtension(originalName)
-                            : info.TenDatFile;
-
+                        // ✅ Nếu có nhập TenMoi -> [TenMoi]_NSNN.pdf
+                        // ✅ Nếu để trống -> unknown_NSNN.pdf
                         if (!string.IsNullOrWhiteSpace(info.TenMoi))
-                            newName = $"{info.TenMoi}_{tenDatFile}.pdf";
+                        {
+                            newName = $"{info.TenMoi}_NSNN.pdf";
+                        }
                         else
-                            newName = $"{tenDatFile}.pdf";
+                        {
+                            newName = "unknown_NSNN.pdf";
+                        }
                     }
                     else
                     {
@@ -312,6 +314,7 @@ namespace C0302_HoangThai.Controllers.C0302
                 return BadRequest($"Lỗi: {ex.Message}");
             }
         }
+
 
         private void SplitPages(string sourcePath, string destPath, int startPage, int endPage)
         {
