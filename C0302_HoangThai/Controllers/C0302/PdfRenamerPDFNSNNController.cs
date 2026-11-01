@@ -37,6 +37,7 @@ namespace C0302_HoangThai.Controllers.C0302
         private static readonly object _pdfiumLock = new object();
 
         private const string NSNN_SUFFIX = "_NSNN";
+        private const string DEFAULT_DUOI_FILE = "NSNN";
 
         [HttpGet]
         public IActionResult Upload() => View();
@@ -225,7 +226,7 @@ namespace C0302_HoangThai.Controllers.C0302
                 var excelPath = Path.Combine(tempFolder, "mapping.xlsx");
                 using (var fs = new FileStream(excelPath, FileMode.Create)) mappingExcel.CopyTo(fs);
 
-                var mapping = new Dictionary<string, (string TenMoi, string TenDatFile)>(
+                var mapping = new Dictionary<string, (string TenMoi, string DuoiFile)>(
                     StringComparer.OrdinalIgnoreCase);
 
                 using (var wb = new XLWorkbook(excelPath))
@@ -234,27 +235,31 @@ namespace C0302_HoangThai.Controllers.C0302
                     int lastCol = ws.LastColumnUsed()?.ColumnNumber() ?? 0;
                     int lastRow = ws.LastRowUsed()?.RowNumber() ?? 1;
 
-                    int colFileName = -1, colTenDatFile = -1, colTenMoi = -1;
+                    int colFileName = -1, colTenMoi = -1, colDuoiFile = -1;
 
                     for (int c = 1; c <= lastCol; c++)
                     {
                         string h = ws.Cell(1, c).GetString()?.Trim() ?? "";
                         if (h.StartsWith("Tên file", StringComparison.OrdinalIgnoreCase)) colFileName = c;
-                        if (h.StartsWith("TenDatFile", StringComparison.OrdinalIgnoreCase)) colTenDatFile = c;
                         if (h.StartsWith("TenMoi", StringComparison.OrdinalIgnoreCase)) colTenMoi = c;
+                        if (h.StartsWith("DuoiFile", StringComparison.OrdinalIgnoreCase)) colDuoiFile = c;
                     }
 
-                    if (colFileName < 0 || colTenDatFile < 0 || colTenMoi < 0)
+                    if (colFileName < 0 || colTenMoi < 0)
                         return BadRequest("File Excel không đúng định dạng.");
 
                     for (int r = 2; r <= lastRow; r++)
                     {
                         string orig = ws.Cell(r, colFileName).GetString()?.Trim();
-                        string tenDatFile = ws.Cell(r, colTenDatFile).GetString()?.Trim();
                         string tenMoi = ws.Cell(r, colTenMoi).GetString()?.Trim();
+                        string duoiFile = colDuoiFile > 0
+                            ? ws.Cell(r, colDuoiFile).GetString()?.Trim()
+                            : null;
+                        // Không có cột / để trống -> mặc định NSNN
+                        if (string.IsNullOrWhiteSpace(duoiFile)) duoiFile = DEFAULT_DUOI_FILE;
 
                         if (string.IsNullOrEmpty(orig)) continue;
-                        mapping[orig] = (tenMoi, tenDatFile);
+                        mapping[orig] = (tenMoi, duoiFile);
                     }
                 }
 
@@ -272,16 +277,10 @@ namespace C0302_HoangThai.Controllers.C0302
                     string newName;
                     if (mapping.TryGetValue(originalName, out var info))
                     {
-                        // ✅ Nếu có nhập TenMoi -> [TenMoi]_NSNN.pdf
-                        // ✅ Nếu để trống -> unknown_NSNN.pdf
-                        if (!string.IsNullOrWhiteSpace(info.TenMoi))
-                        {
-                            newName = $"{info.TenMoi}_NSNN.pdf";
-                        }
-                        else
-                        {
-                            newName = "unknown_NSNN.pdf";
-                        }
+                        // ✅ Tên mới = TenMoi + "_" + DuoiFile  (vd: 108712318960_NSNN.pdf)
+                        // ✅ TenMoi để trống -> unknown_[DuoiFile].pdf
+                        string prefix = !string.IsNullOrWhiteSpace(info.TenMoi) ? info.TenMoi : "unknown";
+                        newName = $"{prefix}_{info.DuoiFile}.pdf";
                     }
                     else
                     {
@@ -531,15 +530,15 @@ namespace C0302_HoangThai.Controllers.C0302
             using var wb = new XLWorkbook();
             var ws = wb.AddWorksheet("Mapping");
 
-            int colTenDatFile = N + 2;
-            int colTenMoi = N + 3;
-            int lastCol = colTenMoi;
+            int colTenMoi = N + 2;     // để trống, người dùng tự lookup
+            int colDuoiFile = N + 3;   // mặc định NSNN
+            int lastCol = colDuoiFile;
 
             ws.Cell(1, 1).Value = "Tên file gốc (chunk)";
             for (int i = 0; i < N; i++)
                 ws.Cell(1, 2 + i).Value = $"Số tờ khai #{i + 1}";
-            ws.Cell(1, colTenDatFile).Value = "TenDatFile (voting)";
-            ws.Cell(1, colTenMoi).Value = "TenMoi (để trống = dùng TenDatFile)";
+            ws.Cell(1, colTenMoi).Value = "TenMoi";
+            ws.Cell(1, colDuoiFile).Value = "DuoiFile";
 
             var hdr = ws.Range(1, 1, 1, lastCol);
             hdr.Style.Font.Bold = true;
@@ -556,15 +555,14 @@ namespace C0302_HoangThai.Controllers.C0302
                 ws.Cell(row, 1).Value = name;
                 for (int i = 0; i < N; i++)
                     ws.Cell(row, 2 + i).Value = i < stks.Count ? stks[i] : "";
-                ws.Cell(row, colTenDatFile).Value = tenDatFile;
                 ws.Cell(row, colTenMoi).Value = "";
+                ws.Cell(row, colDuoiFile).Value = DEFAULT_DUOI_FILE;
 
                 ws.Cell(row, colTenMoi).Style.Fill.BackgroundColor = XLColor.FromHtml("#FFF2CC");
 
                 bool allEmpty = stks.All(string.IsNullOrEmpty);
                 if (allEmpty || tenDatFile.StartsWith("unknown_"))
                 {
-                    ws.Cell(row, colTenDatFile).Style.Font.FontColor = XLColor.Red;
                     ws.Cell(row, 1).Style.Fill.BackgroundColor = XLColor.FromHtml("#FFE0E0");
                 }
             }
@@ -572,8 +570,8 @@ namespace C0302_HoangThai.Controllers.C0302
             ws.Column(1).Width = 28;
             for (int i = 0; i < N; i++)
                 ws.Column(2 + i).Width = 20;
-            ws.Column(colTenDatFile).Width = 22;
-            ws.Column(colTenMoi).Width = 36;
+            ws.Column(colTenMoi).Width = 28;
+            ws.Column(colDuoiFile).Width = 14;
             ws.SheetView.Freeze(1, 1);
 
             if (rows.Count > 0)
