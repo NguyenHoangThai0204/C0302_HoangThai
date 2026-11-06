@@ -6,15 +6,20 @@
     <div class="row justify-content-center">
         <div class="col-md-8">
             <div class="card shadow">
-                <div class="mb-3 d-flex gap-2">
-                    <a href="@Url.Action("DownloadZip", "Excel", new { filePath = ViewBag.ZipPath })"
-                       class="btn btn-success btn-lg flex-fill">
-                        <i class="bi bi-download"></i> Tải về tất cả (@ViewBag.TotalFiles file)
-                    </a>
-                    <button type="button" onclick="clearForm()" class="btn btn-secondary btn-lg">
-                        <i class="bi bi-arrow-counterclockwise"></i> Tách file mới
-                    </button>
-                </div>
+
+                @if (ViewBag.ZipPath != null)
+                {
+                    <div class="mb-3 d-flex gap-2">
+                        <a href="@Url.Action("DownloadZip", "Excel", new { filePath = ViewBag.ZipPath })"
+                           class="btn btn-success btn-lg flex-fill">
+                            <i class="bi bi-download"></i> Tải về tất cả (@ViewBag.TotalFiles file)
+                        </a>
+                        <button type="button" onclick="clearForm()" class="btn btn-secondary btn-lg">
+                            <i class="bi bi-arrow-counterclockwise"></i> Tách file mới
+                        </button>
+                    </div>
+                }
+
                 <div class="btn btn-success btn-lg flex-fill">
                     <h3 class="mb-0"><i class="bi bi-file-earmark-excel"></i> Tách File Excel</h3>
                 </div>
@@ -63,9 +68,45 @@
                                    class="form-control"
                                    id="excelFile"
                                    name="excelFile"
-                                   accept=".xlsx,.xls"
+                                   accept=".xlsx"
                                    required>
-                            <div class="form-text">Chỉ chấp nhận file .xlsx hoặc .xls</div>
+                            <div class="form-text">Chỉ chấp nhận file .xlsx</div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="headerRow" class="form-label">Hàng tiêu đề:</label>
+                                <input type="number"
+                                       class="form-control"
+                                       id="headerRow"
+                                       name="headerRow"
+                                       min="1"
+                                       value="@(ViewBag.HeaderRow ?? 1)"
+                                       required>
+                                <div class="form-text">Hàng dùng làm tiêu đề</div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="startRow" class="form-label">Hàng bắt đầu tách:</label>
+                                <input type="number"
+                                       class="form-control"
+                                       id="startRow"
+                                       name="startRow"
+                                       min="1"
+                                       value="@(ViewBag.StartRow ?? 2)"
+                                       required>
+                                <div class="form-text">Hàng dữ liệu đầu tiên</div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="splitColumn" class="form-label">Cột để tách:</label>
+                                <input type="text"
+                                       class="form-control"
+                                       id="splitColumn"
+                                       name="splitColumn"
+                                       value="@(ViewBag.SplitColumn ?? "A")"
+                                       placeholder="A hoặc 1"
+                                       required>
+                                <div class="form-text">Nhập số (1, 2...) hoặc chữ (A, B...)</div>
+                            </div>
                         </div>
 
                         <button type="submit" class="btn btn-success btn-lg flex-fill" style="width: 100%;">
@@ -76,9 +117,9 @@
                     <div class="mt-4">
                         <h6>Hướng dẫn:</h6>
                         <ul class="small">
-                            <li>File Excel phải có ít nhất 3 cột</li>
-                            <li>Cột đầu tiên sẽ được dùng để phân nhóm</li>
-                            <li>Các dòng có cùng giá trị ở cột đầu sẽ được tách vào 1 file riêng</li>
+                            <li><strong>Hàng tiêu đề:</strong> hàng được dùng làm tiêu đề cho mỗi file sau khi tách</li>
+                            <li><strong>Hàng bắt đầu tách:</strong> dữ liệu từ hàng này trở xuống mới được tách (phải lớn hơn hàng tiêu đề)</li>
+                            <li><strong>Cột để tách:</strong> các dòng có cùng giá trị ở cột này sẽ được gom vào 1 file riêng</li>
                         </ul>
                     </div>
                 </div>
@@ -90,8 +131,12 @@
 @section Scripts {
     <script>
         function clearForm() {
-            // Reset form
-            document.querySelector('form').reset();
+            // Reset form về giá trị mặc định
+            const form = document.querySelector('form');
+            form.reset();
+            document.getElementById('headerRow').value = 1;
+            document.getElementById('startRow').value = 2;
+            document.getElementById('splitColumn').value = 'A';
             document.getElementById('filePreview')?.classList.add('d-none');
 
             // Xóa các thông báo
