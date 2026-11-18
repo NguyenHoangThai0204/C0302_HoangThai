@@ -126,9 +126,8 @@ namespace C0302_HoangThai.Controllers.C0302
 
         private (string Invoice, string Awb, string OriginalInvoice, string Name) ReadIdentifiers(string text, PdfOcrDocument scan, int page)
         {
-            // For scans, choose the most confident orientation before extracting any codes.
             if (string.IsNullOrWhiteSpace(text))
-                text = NormalizeOcrText(scan.RecognizePage(page, tryAllRotations: true));
+                text = NormalizeOcrText(scan.RecognizePage(page, acceptUpright: HasConfidentPodIdentifiers));
 
             string invoice = ExtractInvoiceNumber(text);
             string awb = ExtractAwbNumber(text);
@@ -142,6 +141,17 @@ namespace C0302_HoangThai.Controllers.C0302
                 _ => "Unknown"
             };
             return (invoice, awb, original, name);
+        }
+
+        private bool HasConfidentPodIdentifiers(string text, int confidence)
+        {
+            const int minimumConfidence = 90;
+            if (confidence < minimumConfidence)
+                return false;
+
+            text = NormalizeOcrText(text);
+            return ExtractInvoiceNumber(text, requireLabel: true) != "Unknown"
+                && ExtractAwbNumber(text, requireLabel: true) != "Unknown";
         }
 
         /// <summary>
@@ -172,7 +182,7 @@ namespace C0302_HoangThai.Controllers.C0302
         /// <summary>
         /// Trich xuat Invoice # (VN-0001071, SLO-0009716-17-18, ITA-0028194, ...)
         /// </summary>
-        private string ExtractInvoiceNumber(string text)
+        private string ExtractInvoiceNumber(string text, bool requireLabel = false)
         {
             if (string.IsNullOrWhiteSpace(text)) return "Unknown";
 
@@ -185,6 +195,8 @@ namespace C0302_HoangThai.Controllers.C0302
                 string num = CleanupExtractedText(MergeInvoiceTokens(m.Groups[1].Value));
                 if (num.Length >= 5) return SanitizeFileName(num);
             }
+
+            if (requireLabel) return "Unknown";
 
             // Pattern 2: Packing list #
             m = Regex.Match(text, @"Packing\s*[Ll]ist\s*#?\s*:?\s*([A-Z0-9\-/]+)", RegexOptions.IgnoreCase);
@@ -217,7 +229,7 @@ namespace C0302_HoangThai.Controllers.C0302
         /// Trich xuat so AWB / B/L no. (VD: 7304864534, 139443362435)
         /// Uu tien tim sau label "AWB" / "B/L", fallback day so >= 8 chu so.
         /// </summary>
-        private string ExtractAwbNumber(string text)
+        private string ExtractAwbNumber(string text, bool requireLabel = false)
         {
             if (string.IsNullOrWhiteSpace(text))
                 return "Unknown";
@@ -252,6 +264,8 @@ namespace C0302_HoangThai.Controllers.C0302
                     }
                 }
             }
+
+            if (requireLabel) return "Unknown";
 
             // fallback
             var matches = Regex.Matches(
