@@ -1,6 +1,5 @@
 @using C0302_HoangThai.Models
 @{
-    Layout = "_OcrLayout";
     var workspace = new OcrWorkspaceModel(
         "Chứng từ POD",
         "Tách mỗi trang thành một PDF và nhận dạng số Invoice, AWB để đặt tên.",
@@ -10,4 +9,14 @@
     ViewData["Title"] = workspace.Title;
 }
 
-<partial name="_OcrWorkspace" model="workspace" />
+@section Styles {
+    <link rel="stylesheet" href="~/dist/css/CSS0302/ocr-workspace.css" asp-append-version="true" />
+}
+
+<div class="ocr-workspace" lang="vi">
+    <partial name="_OcrWorkspace" model="workspace" />
+</div>
+
+@section Scripts {
+    <script type="module" src="~/dist/js/J0302/ocr-workspace.js" asp-append-version="true"></script>
+}

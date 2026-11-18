@@ -1,50 +1,8 @@
-@{
-    Layout = "_OcrLayout";
-    ViewData["Title"] = "Công cụ tài liệu";
-    var pdfTools = new[]
-    {
-        (Controller: "PdfV2", Title: "Tờ khai nhập khẩu", Description: "Tách theo dãy trang và đọc số tờ khai.", Icon: "ti-file-import"),
-        (Controller: "PdfRenamer3Page", Title: "Tờ khai xuất khẩu", Description: "Tách theo dãy trang hoặc theo số trang mỗi tệp.", Icon: "ti-file-export"),
-        (Controller: "PdfRenamerPDFNSNN", Title: "Chứng từ NSNN", Description: "Đọc số tờ khai ở đầu hoặc cuối mỗi chứng từ.", Icon: "ti-receipt"),
-        (Controller: "PdfRenamerPDFCu", Title: "Chứng từ POD", Description: "Tách từng trang và đọc số Invoice, AWB.", Icon: "ti-truck")
-    };
+﻿@{
+    ViewData["Title"] = "Home Page";
 }
 
-<section class="workspace-hero" aria-labelledby="workspace-title">
-    <div class="hero-copy">
-        <h1 id="workspace-title">Xử lý PDF và Excel</h1>
-        <p class="hero-description">Tách tài liệu, đọc số chứng từ bằng OCR và đổi tên hàng loạt từ bảng Excel.</p>
-    </div>
-    <div class="hero-illustration" aria-hidden="true">
-        <div class="illustration-back"></div>
-        <div class="illustration-page"><span></span><span></span><span></span><span></span></div>
-        <div class="illustration-scan"></div>
-    </div>
-</section>
-
-<section class="tool-section" aria-labelledby="ocr-tools">
-    <h2 id="ocr-tools">Nhận dạng và đặt tên PDF</h2>
-    <div class="tool-grid">
-        @foreach (var tool in pdfTools)
-        {
-            <a asp-controller="@tool.Controller" asp-action="Upload" class="workspace-card tool-link">
-                <span class="card-icon"><i class="ti @tool.Icon" aria-hidden="true"></i></span>
-                <span>
-                    <strong>@tool.Title</strong>
-                    <span class="tool-description">@tool.Description</span>
-                </span>
-                <i class="ti ti-arrow-right" aria-hidden="true"></i>
-            </a>
-        }
-    </div>
-</section>
-
-<section class="tool-section" aria-labelledby="other-tools">
-    <h2 id="other-tools">Các công cụ khác</h2>
-    <div class="form-actions">
-        <a class="workspace-button button-plain" asp-controller="MergePDF" asp-action="Upload">Gộp PDF</a>
-        <a class="workspace-button button-plain" asp-controller="Excel" asp-action="Upload">Tách BOM</a>
-        <a class="workspace-button button-plain" asp-controller="MergeExcelGopFile" asp-action="Upload">Gộp OUTBOUND</a>
-        <a class="workspace-button button-plain" asp-controller="RenameExcelTachFile" asp-action="Upload">Tách OUTBOUND</a>
-    </div>
-</section>
+<div class="text-center">
+    <h1 class="display-4">Welcome</h1>
+    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+</div>

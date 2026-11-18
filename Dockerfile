@@ -12,6 +12,8 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=build /app .
+# Preserve the shared layout's jQuery URLs on Linux.
+RUN ln -s jquery wwwroot/dist/lib/Jquery
 ENV ASPNETCORE_HTTP_PORTS=10000 \
     OMP_THREAD_LIMIT=1 \
     Ocr__TessDataPath=/usr/share/tesseract-ocr/5/tessdata \
