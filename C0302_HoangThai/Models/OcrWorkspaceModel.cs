@@ -4,4 +4,5 @@ public enum OcrPageSelection { Automatic, StartPages, StartPagesOrFixedSize, Bud
 
 public sealed record OcrWorkspaceModel(
     string Title, string Description, string SplitAction, string RenameAction, string PdfInput, string RenameInstructions,
-    OcrPageSelection PageSelection = OcrPageSelection.Automatic, string ZipInput = "pdfZip", string ExcelInput = "mappingExcel");
+    OcrPageSelection PageSelection = OcrPageSelection.Automatic, string ZipInput = "pdfZip", string ExcelInput = "mappingExcel",
+    bool ShowUprightPdfOption = false);

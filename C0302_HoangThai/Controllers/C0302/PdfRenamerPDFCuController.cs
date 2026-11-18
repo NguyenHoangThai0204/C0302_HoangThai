@@ -86,15 +86,15 @@ namespace C0302_HoangThai.Controllers.C0302
         [HttpPost]
         [RequestSizeLimit(500_000_000)]
         [RequestFormLimits(MultipartBodyLengthLimit = 500_000_000)]
-        public Task<IActionResult> SplitEachPage(IFormFile file)
+        public Task<IActionResult> SplitEachPage(IFormFile file, [FromForm] bool pdfIsUpright = false)
         {
             if (file == null || file.Length == 0)
                 return Task.FromResult<IActionResult>(BadRequest("Vui lòng chọn file PDF."));
 
-            return RunJobAsync([file], (job, inputs) => SplitPages(job, inputs[0]));
+            return RunJobAsync([file], (job, inputs) => SplitPages(job, inputs[0], pdfIsUpright));
         }
 
-        private PdfJobOutput SplitPages(PdfJob job, string path)
+        private PdfJobOutput SplitPages(PdfJob job, string path, bool pdfIsUpright)
         {
             using var source = new PdfDocument(new PdfReader(path));
             using var scan = ocr.Open(path);
@@ -109,7 +109,7 @@ namespace C0302_HoangThai.Controllers.C0302
             for (int page = 1; page <= total; page++)
             {
                 string text = PdfOcrDocument.ReadText(source, page);
-                var (invoice, awb, originalInvoice, name) = ReadIdentifiers(text, scan, page);
+                var (invoice, awb, originalInvoice, name) = ReadIdentifiers(text, scan, page, pdfIsUpright);
                 string fileName = PdfPageRanges.WriteChunk(source, page, page, outputFolder, SanitizeFileName(name), firstSuffix: 2);
                 rows.Add((fileName, invoice, awb, originalInvoice, page));
                 job.ReportUnits(page, total, "Đang đọc Invoice và AWB.");
@@ -124,10 +124,12 @@ namespace C0302_HoangThai.Controllers.C0302
         // PRIVATE HELPERS
         // =========================================================
 
-        private (string Invoice, string Awb, string OriginalInvoice, string Name) ReadIdentifiers(string text, PdfOcrDocument scan, int page)
+        private (string Invoice, string Awb, string OriginalInvoice, string Name) ReadIdentifiers(
+            string text, PdfOcrDocument scan, int page, bool pdfIsUpright = false)
         {
             if (string.IsNullOrWhiteSpace(text))
-                text = NormalizeOcrText(scan.RecognizePage(page, acceptOrientation: HasConfidentPodIdentifiers));
+                text = NormalizeOcrText(scan.RecognizePage(page,
+                    acceptOrientation: pdfIsUpright ? null : HasConfidentPodIdentifiers));
 
             string invoice = ExtractInvoiceNumber(text);
             string awb = ExtractAwbNumber(text);

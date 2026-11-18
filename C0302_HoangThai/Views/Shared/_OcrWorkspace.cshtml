@@ -65,6 +65,17 @@
                 </div>
             }
 
+            @if (Model.ShowUprightPdfOption)
+            {
+                <div class="field">
+                    <label for="pdf-is-upright">
+                        <input type="checkbox" id="pdf-is-upright" name="pdfIsUpright" value="true" aria-describedby="pdf-is-upright-help" />
+                        PDF đã xoay đúng chiều
+                    </label>
+                    <small id="pdf-is-upright-help">Chỉ chọn khi đã lưu tất cả các trang theo chiều đọc.</small>
+                </div>
+            }
+
             <p class="workspace-note split-result">Kết quả gồm PDF đã tách và Mapping.xlsx.</p>
             <div class="form-actions">
                 <button class="workspace-button button-primary" type="submit"><i class="ti ti-scan" aria-hidden="true"></i> Tách và nhận dạng</button>
