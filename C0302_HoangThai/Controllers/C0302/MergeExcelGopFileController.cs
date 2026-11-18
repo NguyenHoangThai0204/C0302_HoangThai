@@ -1,3 +1,4 @@
+using C0302_HoangThai.Service.S0302;
 using Microsoft.AspNetCore.Mvc;
 using ClosedXML.Excel;
 using System.IO.Compression;
@@ -21,7 +22,7 @@ namespace C0302_HoangThai.Controllers.C0302
     ///  - Border/khung viền của mỗi block được GIỮ NGUYÊN y như file gốc (copy
     ///    trực tiếp style từng cell, không ép kẻ lưới lại).
     /// </summary>
-    public class MergeExcelGopFileController : Controller
+    public class MergeExcelGopFileController(SpreadsheetDownloads downloads) : Controller
     {
         private const int DATE_COLUMN = 4; // Cột D = Date
 
@@ -49,7 +50,7 @@ namespace C0302_HoangThai.Controllers.C0302
                 Directory.CreateDirectory(tempFolder);
 
                 // Lưu zip upload
-                var zipPath = Path.Combine(tempFolder, zipFile.FileName);
+                var zipPath = Path.Combine(tempFolder, "input.zip");
                 using (var fs = new FileStream(zipPath, FileMode.Create))
                     zipFile.CopyTo(fs);
 
@@ -102,13 +103,13 @@ namespace C0302_HoangThai.Controllers.C0302
                     debugLogs.Add($"    {b.FileName}  ->  ngày mốc: {(b.SortDate.HasValue ? b.SortDate.Value.ToString("dd/MM/yyyy") : "(không có ngày)")}");
 
                 // Gộp thành 1 workbook
-                var outputPath = Path.Combine(Path.GetTempPath(), $"Merged_Excel_{DateTime.Now:yyyyMMddHHmmss}.xlsx");
+                var outputPath = SpreadsheetDownloads.CreatePath($"Merged_Excel_{DateTime.Now:yyyyMMddHHmmss}.xlsx");
                 int totalDataRows = MergeBlocks(sortedBlocks, outputPath, debugLogs);
 
                 ViewBag.Success = $"Đã gộp thành công {sortedBlocks.Count} file thành 1 file Excel ({totalDataRows} dòng dữ liệu)!";
                 ViewBag.Blocks = sortedBlocks;
                 ViewBag.TotalBlocks = sortedBlocks.Count;
-                ViewBag.OutputPath = outputPath;
+                ViewBag.OutputPath = downloads.Register(outputPath);
                 ViewBag.OutputFileName = Path.GetFileName(outputPath);
                 ViewBag.DebugLogs = debugLogs;
 
@@ -133,18 +134,13 @@ namespace C0302_HoangThai.Controllers.C0302
         }
 
         [HttpGet]
+        [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
         public IActionResult DownloadFile(string filePath)
         {
-            if (string.IsNullOrEmpty(filePath) || !System.IO.File.Exists(filePath))
-                return NotFound();
-
-            var memory = new MemoryStream();
-            using (var stream = new FileStream(filePath, FileMode.Open))
-                stream.CopyTo(memory);
-            memory.Position = 0;
-
-            return File(memory, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                Path.GetFileName(filePath));
+            var path = downloads.Find(filePath);
+            return path is null || !System.IO.File.Exists(path)
+                ? NotFound()
+                : PhysicalFile(path, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", Path.GetFileName(path));
         }
 
         // ── Đọc 1 file .xlsx thành 1 MergeBlock (header row + data rows + ngày mốc để sort) ──

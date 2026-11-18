@@ -1,0 +1,122 @@
+@model C0302_HoangThai.Models.OcrWorkspaceModel
+@using C0302_HoangThai.Models
+@{
+    var hasRanges = Model.PageSelection != OcrPageSelection.Automatic;
+    var rangesRequired = Model.PageSelection is OcrPageSelection.StartPages or OcrPageSelection.BudgetDocuments;
+    var rangePlaceholder = Model.PageSelection == OcrPageSelection.BudgetDocuments ? "1, 5, 12" : "1, 4, 7";
+}
+
+<section class="workspace-hero" aria-labelledby="workspace-title">
+    <div class="hero-copy">
+        <p class="hero-category"><i class="ti ti-scan" aria-hidden="true"></i> Xử lý PDF bằng OCR</p>
+        <h1 id="workspace-title">@Model.Title</h1>
+        <p class="hero-description">@Model.Description</p>
+    </div>
+    <div class="hero-illustration" aria-hidden="true">
+        <div class="illustration-back"></div>
+        <div class="illustration-page"><span></span><span></span><span></span><span></span></div>
+        <div class="illustration-scan"></div>
+    </div>
+</section>
+
+<div class="workspace-grid">
+    <section class="workspace-card" aria-labelledby="split-title">
+        <div class="workspace-card-heading">
+            <span class="card-icon"><i class="ti ti-scan" aria-hidden="true"></i></span>
+            <div>
+                <p class="step-label">Bước 1</p>
+                <h2 id="split-title">Tách và đọc PDF</h2>
+            </div>
+        </div>
+        <form method="post" enctype="multipart/form-data" asp-action="@Model.SplitAction" class="workspace-form" data-pdf-job>
+            <label class="file-zone">
+                <input type="file" name="@Model.PdfInput" accept=".pdf,application/pdf" required />
+                <i class="ti ti-cloud-upload" aria-hidden="true"></i>
+                <span class="file-label">Chọn hoặc kéo thả PDF</span>
+                <span class="file-help" data-file-name>Một tệp PDF</span>
+            </label>
+
+            @if (hasRanges)
+            {
+                <div class="field">
+                    <label for="page-ranges">Trang bắt đầu mỗi tệp</label>
+                    <input type="text" id="page-ranges" name="pageRanges" placeholder="@rangePlaceholder"
+                           required="@rangesRequired" aria-describedby="ranges-help" />
+                    <small id="ranges-help">Bắt đầu bằng 1 và ngăn cách bằng dấu phẩy.</small>
+                </div>
+            }
+            @if (Model.PageSelection == OcrPageSelection.StartPagesOrFixedSize)
+            {
+                <div class="field">
+                    <label for="pages-per-file">Số trang mỗi tệp</label>
+                    <input type="number" id="pages-per-file" name="pagesPerFile" min="1" max="1000" value="3" aria-describedby="fixed-size-help" />
+                    <small id="fixed-size-help">Áp dụng khi để trống dãy trang bắt đầu.</small>
+                </div>
+            }
+            @if (Model.PageSelection == OcrPageSelection.BudgetDocuments)
+            {
+                <div class="field">
+                    <label for="pages-to-read">Số trang cần đọc ở mỗi đầu tệp</label>
+                    <input type="number" id="pages-to-read" name="pagesToRead" min="1" max="20" value="3" />
+                </div>
+                <fieldset class="field">
+                    <legend>Vị trí đọc trong mỗi tệp</legend>
+                    <div class="radio-options">
+                        <label><input type="radio" name="readPosition" value="top" checked /> Đầu tệp</label>
+                        <label><input type="radio" name="readPosition" value="bottom" /> Cuối tệp</label>
+                        <label><input type="radio" name="readPosition" value="both" /> Cả hai</label>
+                    </div>
+                </fieldset>
+            }
+
+            <div class="form-actions">
+                <button class="workspace-button button-primary" type="submit"><i class="ti ti-scan" aria-hidden="true"></i> Tách và nhận dạng</button>
+                <button class="workspace-button button-plain" type="reset">Xóa lựa chọn</button>
+            </div>
+            <p class="workspace-result"><i class="ti ti-file-zip" aria-hidden="true"></i> Kết quả gồm PDF đã tách và Mapping.xlsx.</p>
+        </form>
+    </section>
+
+    <section class="workspace-card" aria-labelledby="rename-title">
+        <div class="workspace-card-heading">
+            <span class="card-icon card-icon-rename"><i class="ti ti-edit" aria-hidden="true"></i></span>
+            <div>
+                <p class="step-label">Bước 2</p>
+                <h2 id="rename-title">Đổi tên bằng Excel</h2>
+            </div>
+        </div>
+        <form method="post" enctype="multipart/form-data" asp-action="@Model.RenameAction" class="workspace-form" data-pdf-job>
+            <p class="rename-instructions">@Model.RenameInstructions</p>
+            <label class="file-zone file-zone-compact">
+                <input type="file" name="@Model.ZipInput" accept=".zip,application/zip" required />
+                <i class="ti ti-file-zip" aria-hidden="true"></i>
+                <span class="file-label">Chọn ZIP ở bước 1</span>
+                <span class="file-help" data-file-name>Một tệp ZIP</span>
+            </label>
+            <label class="file-zone file-zone-compact">
+                <input type="file" name="@Model.ExcelInput" accept=".xlsx" required />
+                <i class="ti ti-table" aria-hidden="true"></i>
+                <span class="file-label">Chọn Excel đã điền</span>
+                <span class="file-help" data-file-name>Mapping.xlsx</span>
+            </label>
+            <div class="form-actions">
+                <button class="workspace-button button-primary" type="submit"><i class="ti ti-edit" aria-hidden="true"></i> Đổi tên và tạo ZIP</button>
+                <button class="workspace-button button-plain" type="reset">Xóa lựa chọn</button>
+            </div>
+        </form>
+    </section>
+</div>
+
+<dialog class="workspace-dialog" id="page-loader" aria-labelledby="loader-title">
+    <div class="loader-ring" role="progressbar" aria-label="Tiến độ xử lý" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <span data-loader-percent>0%</span>
+    </div>
+    <h2 id="loader-title">Đang xử lý tài liệu</h2>
+    <p class="loader-message" data-loader-message role="status">Đang tải tệp lên.</p>
+    <p class="loader-units" data-loader-units></p>
+    <div class="loader-actions" data-loader-actions hidden>
+        <a class="workspace-button button-primary" data-loader-download hidden><i class="ti ti-download" aria-hidden="true"></i> Tải ZIP</a>
+        <button class="workspace-button button-plain" type="button" data-loader-close>Đóng</button>
+    </div>
+</dialog>
+<script src="~/dist/js/J0302/ocr-workspace.js" asp-append-version="true" defer></script>

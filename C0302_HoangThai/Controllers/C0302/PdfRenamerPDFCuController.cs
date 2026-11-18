@@ -1,22 +1,12 @@
-﻿using ClosedXML.Excel;
-using Docnet.Core;
-using Docnet.Core.Models;
-using DocumentFormat.OpenXml.InkML;
+using C0302_HoangThai.Service.S0302;
+using ClosedXML.Excel;
 using iText.Kernel.Pdf;
-using iText.Kernel.Pdf.Canvas.Parser;
-using iText.Kernel.Pdf.Canvas.Parser.Listener;
-using iText.Kernel.Utils;
 using Microsoft.AspNetCore.Mvc;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing;
-using System.IO.Compression;
 using System.Text.RegularExpressions;
-using Tesseract;
 
 namespace C0302_HoangThai.Controllers.C0302
 {
-    public class PdfRenamerPDFCuController : Controller
+    public class PdfRenamerPDFCuController(PdfJobs jobs, PdfOcr ocr) : PdfJobController(jobs)
     {
         [HttpGet]
         public IActionResult Upload() => View();
@@ -25,63 +15,69 @@ namespace C0302_HoangThai.Controllers.C0302
         // POST: Doi ten nhieu file PDF / ZIP
         // =========================================================
         [HttpPost]
-        public IActionResult ProcessFiles(List<IFormFile> pdfFiles, IFormFile zipFile)
+        [RequestSizeLimit(500_000_000)]
+        [RequestFormLimits(MultipartBodyLengthLimit = 500_000_000)]
+        public Task<IActionResult> ProcessFiles(List<IFormFile> pdfFiles, IFormFile? zipFile)
         {
-            var debugLogs = new List<string>();
-            var fileInfos = new List<RenamedFileInfo>();
-            try
+            if (zipFile is { Length: > 0 })
+                return RunJobAsync([zipFile], (job, inputs) => RenameUploadedPdfs(job, inputs, null));
+
+            var files = (pdfFiles ?? []).Where(file => file.Length > 0 && file.FileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)).ToArray();
+            if (files.Length == 0)
+                return Task.FromResult<IActionResult>(BadRequest("Vui lòng chọn các file PDF hoặc một file ZIP."));
+
+            var names = files.Select(file => file.FileName.Replace('\\', '/').Split('/')[^1]).ToArray();
+            return RunJobAsync(files, (job, inputs) => RenameUploadedPdfs(job, inputs, names));
+        }
+
+        private PdfJobOutput RenameUploadedPdfs(PdfJob job, string[] inputs, string[]? names)
+        {
+            var output = Directory.CreateDirectory(Path.Combine(job.Directory, "output")).FullName;
+            if (names is null)
             {
-                var tempFolder = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-                Directory.CreateDirectory(tempFolder);
-                var extractedFolder = Path.Combine(tempFolder, "extracted");
-                Directory.CreateDirectory(extractedFolder);
+                var extracted = Directory.CreateDirectory(Path.Combine(job.Directory, "extracted")).FullName;
+                job.ExtractZip(inputs[0], extracted);
+                inputs = Directory.EnumerateFiles(extracted, "*", SearchOption.AllDirectories)
+                    .Where(path => path.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)).ToArray();
+                names = inputs.Select(path => Path.GetFileName(path)).ToArray();
+            }
 
-                if (zipFile != null && zipFile.Length > 0)
-                {
-                    var zipPath = Path.Combine(tempFolder, zipFile.FileName);
-                    using (var stream = new FileStream(zipPath, FileMode.Create))
-                        zipFile.CopyTo(stream);
-                    ZipFile.ExtractToDirectory(zipPath, extractedFolder);
+            if (inputs.Length == 0)
+                throw new PdfJobInputException("ZIP không có file PDF.");
 
-                    foreach (var pdfPath in Directory.GetFiles(extractedFolder, "*.pdf", SearchOption.AllDirectories))
-                        ProcessSinglePdf(pdfPath, tempFolder, fileInfos, debugLogs);
-                }
-                else if (pdfFiles != null && pdfFiles.Count > 0)
+            var log = new List<string>();
+            job.ReportUnits(0, inputs.Length, "Đang đọc Invoice và AWB.");
+            for (int i = 0; i < inputs.Length; i++)
+            {
+                try
                 {
-                    foreach (var pdfFile in pdfFiles)
+                    using var source = new PdfDocument(new PdfReader(inputs[i]));
+                    using var scan = ocr.Open(inputs[i]);
+                    int pages = source.GetNumberOfPages();
+                    if (pages == 0)
+                        throw new iText.Kernel.Exceptions.PdfException("PDF không có trang.");
+
+                    var text = new System.Text.StringBuilder();
+                    for (int page = 1; page <= pages; page++)
                     {
-                        if (pdfFile.Length == 0 || !pdfFile.FileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
-                            continue;
-                        var tempPdfPath = Path.Combine(extractedFolder, pdfFile.FileName);
-                        using (var stream = new FileStream(tempPdfPath, FileMode.Create))
-                            pdfFile.CopyTo(stream);
-                        ProcessSinglePdf(tempPdfPath, tempFolder, fileInfos, debugLogs);
+                        job.StoppingToken.ThrowIfCancellationRequested();
+                        text.AppendLine(PdfOcrDocument.ReadText(source, page));
                     }
+
+                    var (_, _, _, name) = ReadIdentifiers(text.ToString(), scan, 1);
+                    string newName = PdfPageRanges.AvailableName(output, SanitizeFileName(name), ".pdf", firstSuffix: 1);
+                    System.IO.File.Copy(inputs[i], Path.Combine(output, newName));
+                    log.Add($"{names[i]} → {newName}");
                 }
-                else
+                catch (iText.Kernel.Exceptions.PdfException)
                 {
-                    ViewBag.Error = "Vui long chon file PDF hoac file ZIP";
-                    return View("Upload");
+                    log.Add($"{names[i]} → Không đọc được PDF.");
                 }
-
-                System.IO.File.WriteAllLines(Path.Combine(tempFolder, "rename_log.txt"), debugLogs);
-                var outputZipPath = Path.Combine(Path.GetTempPath(), $"Renamed_PDFs_{DateTime.Now:yyyyMMddHHmmss}.zip");
-                ZipFile.CreateFromDirectory(tempFolder, outputZipPath);
-                try { Directory.Delete(extractedFolder, true); } catch { }
-
-                ViewBag.Success = $"Da doi ten thanh cong {fileInfos.Count} file PDF!";
-                ViewBag.Files = fileInfos;
-                ViewBag.ZipPath = outputZipPath;
-                ViewBag.TotalFiles = fileInfos.Count;
-                ViewBag.DebugLogs = debugLogs;
-                return View("Upload");
+                job.ReportUnits(i + 1, inputs.Length, "Đang đọc Invoice và AWB.");
             }
-            catch (Exception ex)
-            {
-                ViewBag.Error = $"Loi xu ly: {ex.Message}\n{ex.StackTrace}";
-                ViewBag.DebugLogs = debugLogs;
-                return View("Upload");
-            }
+
+            System.IO.File.WriteAllLines(Path.Combine(output, "rename_log.txt"), log);
+            return job.CreateZip(output, $"Renamed_PDFs_{DateTime.Now:yyyyMMddHHmmss}.zip");
         }
 
         // =========================================================
@@ -90,153 +86,72 @@ namespace C0302_HoangThai.Controllers.C0302
         [HttpPost]
         [RequestSizeLimit(500_000_000)]
         [RequestFormLimits(MultipartBodyLengthLimit = 500_000_000)]
-        public IActionResult SplitEachPage(IFormFile file)
+        public Task<IActionResult> SplitEachPage(IFormFile file)
         {
             if (file == null || file.Length == 0)
-                return BadRequest("File khong hop le.");
+                return Task.FromResult<IActionResult>(BadRequest("Vui lòng chọn file PDF."));
 
-            string tempFolder = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-            Directory.CreateDirectory(tempFolder);
+            return RunJobAsync([file], (job, inputs) => SplitPages(job, inputs[0]));
+        }
 
-            try
+        private PdfJobOutput SplitPages(PdfJob job, string path)
+        {
+            using var source = new PdfDocument(new PdfReader(path));
+            using var scan = ocr.Open(path);
+            int total = source.GetNumberOfPages();
+            if (total == 0)
+                throw new PdfJobInputException("File PDF không có trang nào.");
+
+            var outputFolder = Directory.CreateDirectory(Path.Combine(job.Directory, "output")).FullName;
+            var rows = new List<(string FileName, string InvoiceNo, string AwbNo, string OriginalInvoiceNo, int PageNo)>();
+            job.ReportUnits(0, total, "Đang đọc Invoice và AWB.");
+
+            for (int page = 1; page <= total; page++)
             {
-                string pdfPath = Path.Combine(tempFolder, file.FileName);
-                using (var fs = new FileStream(pdfPath, FileMode.Create))
-                    file.CopyTo(fs);
-
-                int totalPages;
-                using (var reader = new PdfReader(pdfPath))
-                using (var pdfDoc = new PdfDocument(reader))
-                    totalPages = pdfDoc.GetNumberOfPages();
-
-                string outFolder = Path.Combine(tempFolder, "output");
-                Directory.CreateDirectory(outFolder);
-                var excelRows = new List<(string FileName, string InvoiceNo, string AwbNo, string OriginalInvoiceNo, int PageNo)>();
-
-                using (var reader = new PdfReader(pdfPath))
-                using (var srcDoc = new PdfDocument(reader))
-                {
-                    for (int pageNo = 1; pageNo <= totalPages; pageNo++)
-                    {
-                        string subPath = Path.Combine(tempFolder, $"page_{pageNo}.pdf");
-                        using (var writer = new PdfWriter(subPath))
-                        using (var subDoc = new PdfDocument(writer))
-                            new PdfMerger(subDoc).Merge(srcDoc, pageNo, pageNo);
-
-                        var (invoiceNo, awbNo, originalInvoiceNo, fileName) = ExtractFileNameFromPdf(subPath);
-
-                        Console.WriteLine($"[SplitEachPage] Trang {pageNo} | Invoice=[{invoiceNo}] | AWB=[{awbNo}] | OriginalInvoice=[{originalInvoiceNo}] | File=[{fileName}]");
-
-                        string destName = $"{SanitizeFileName(fileName)}.pdf";
-                        string destPath = Path.Combine(outFolder, destName);
-                        int suffix = 2;
-                        while (System.IO.File.Exists(destPath))
-                        {
-                            destName = $"{SanitizeFileName(fileName)}_{suffix++}.pdf";
-                            destPath = Path.Combine(outFolder, destName);
-                        }
-
-                        System.IO.File.Copy(subPath, destPath);
-                        excelRows.Add((destName, invoiceNo, awbNo, originalInvoiceNo, pageNo));
-                    }
-                }
-
-                string excelPath = Path.Combine(outFolder, "Mapping.xlsx");
-                BuildExcelEachPage(excelRows, excelPath);
-
-                string zipPath = Path.Combine(tempFolder, $"TachTungTrang_{DateTime.Now:yyyyMMddHHmmss}.zip");
-                ZipFile.CreateFromDirectory(outFolder, zipPath);
-                return PhysicalFile(zipPath, "application/zip", Path.GetFileName(zipPath));
+                string text = PdfOcrDocument.ReadText(source, page);
+                var (invoice, awb, originalInvoice, name) = ReadIdentifiers(text, scan, page);
+                string fileName = PdfPageRanges.WriteChunk(source, page, page, outputFolder, SanitizeFileName(name), firstSuffix: 2);
+                rows.Add((fileName, invoice, awb, originalInvoice, page));
+                job.ReportUnits(page, total, "Đang đọc Invoice và AWB.");
             }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.ToString());
-            }
+
+            job.Report(90, "Đang tạo Mapping.xlsx.");
+            BuildExcelEachPage(rows, Path.Combine(outputFolder, "Mapping.xlsx"));
+            return job.CreateZip(outputFolder, $"TachTungTrang_{DateTime.Now:yyyyMMddHHmmss}.zip");
         }
 
         // =========================================================
         // PRIVATE HELPERS
         // =========================================================
 
-        private void ProcessSinglePdf(string inputPath, string outputFolder, List<RenamedFileInfo> fileInfos, List<string> debugLogs)
+        private (string Invoice, string Awb, string OriginalInvoice, string Name) ReadIdentifiers(string text, PdfOcrDocument scan, int page)
         {
-            try
+            string invoice = ExtractInvoiceNumber(text);
+            string awb = ExtractAwbNumber(text);
+            string original = ExtractOriginalInvoiceNumber(text);
+            if (invoice == "Unknown" || awb == "Unknown")
             {
-                string originalName = Path.GetFileName(inputPath);
-                var (_, _, originalInvoiceNo, fileName) = ExtractFileNameFromPdf(inputPath);
-
-                string outputPath = Path.Combine(outputFolder, $"{fileName}.pdf");
-                int counter = 1;
-                while (System.IO.File.Exists(outputPath))
-                    outputPath = Path.Combine(outputFolder, $"{fileName}_{counter++}.pdf");
-
-                System.IO.File.Copy(inputPath, outputPath, true);
-                fileInfos.Add(new RenamedFileInfo
+                string recognized = NormalizeOcrText(scan.RecognizePage(page, hasIdentifier: candidate =>
                 {
-                    OriginalName = originalName,
-                    NewName = Path.GetFileName(outputPath),
-                    FilePath = outputPath,
-                    ExtractedCode = fileName,
-                    OriginalInvoiceNo = originalInvoiceNo
-                });
-                debugLogs.Add($"{originalName} -> {Path.GetFileName(outputPath)}");
+                    string normalized = NormalizeOcrText(candidate);
+                    return ExtractInvoiceNumber(normalized) != "Unknown" || ExtractAwbNumber(normalized) != "Unknown";
+                }));
+                if (invoice == "Unknown")
+                    invoice = ExtractInvoiceNumber(recognized);
+                if (awb == "Unknown")
+                    awb = ExtractAwbNumber(recognized);
+                if (original == "Unknown")
+                    original = ExtractOriginalInvoiceNumber(recognized);
             }
-            catch (Exception ex)
+
+            string name = (invoice != "Unknown", awb != "Unknown") switch
             {
-                debugLogs.Add($"Loi xu ly {Path.GetFileName(inputPath)}: {ex.Message}");
-            }
-        }
-
-        /// <summary>
-        /// Tra ve (invoiceNo, awbNo, tenFile).
-        /// tenFile = "INVOICE_AWB" neu co ca 2, hoac chi "INVOICE", hoac "Unknown".
-        /// verbose=true: in chi tiet OCR ra console khi can debug.
-        /// </summary>
-        private (string invoiceNo, string awbNo, string originalInvoiceNo, string fileName) ExtractFileNameFromPdf(string pdfPath, bool verbose = false)
-        {
-            try
-            {
-                string text = "";
-
-                // Buoc 1: Thu doc text layer (gop toan bo cac trang, vi "Original invoice #"
-                // thuong nam o trang Control Sheet - co the la trang 2 tro di)
-                using (var reader = new iText.Kernel.Pdf.PdfReader(pdfPath))
-                using (var pdfDoc = new iText.Kernel.Pdf.PdfDocument(reader))
-                {
-                    int pageCount = pdfDoc.GetNumberOfPages();
-                    var sbText = new System.Text.StringBuilder();
-                    for (int p = 1; p <= pageCount; p++)
-                        sbText.AppendLine(PdfTextExtractor.GetTextFromPage(pdfDoc.GetPage(p), new SimpleTextExtractionStrategy()));
-                    text = sbText.ToString();
-                }
-
-                // Buoc 2: Fallback OCR neu text layer trong
-                if (string.IsNullOrWhiteSpace(text))
-                {
-                    text = PerformOCR(pdfPath, verbose);
-                    text = NormalizeOcrText(text);
-                }
-
-                string invoiceNo = ExtractInvoiceNumber(text);
-                string awbNo = ExtractAwbNumber(text);
-                string originalInvoiceNo = ExtractOriginalInvoiceNumber(text);
-
-                // Ten file: "SLO-0009716-17-18_7304864534"
-                string fileName = (invoiceNo != "Unknown", awbNo != "Unknown") switch
-                {
-                    (true, true) => $"{invoiceNo}_{awbNo}",
-                    (true, false) => invoiceNo,
-                    (false, true) => awbNo,
-                    _ => "Unknown"
-                };
-
-                return (invoiceNo, awbNo, originalInvoiceNo, fileName);
-            }
-            catch (Exception ex)
-            {
-                if (verbose) Console.WriteLine($"  [ERR] Doc PDF: {ex.Message}");
-                return ("Unknown", "Unknown", "Unknown", "Unknown");
-            }
+                (true, true) => $"{invoice}_{awb}",
+                (true, false) => invoice,
+                (false, true) => awb,
+                _ => "Unknown"
+            };
+            return (invoice, awb, original, name);
         }
 
         /// <summary>
@@ -533,65 +448,6 @@ namespace C0302_HoangThai.Controllers.C0302
             return safe[..Math.Min(safe.Length, 150)];
         }
 
-        /// <summary>
-        /// OCR trang dau tien cua PDF bang Tesseract.
-        /// verbose=true: in chi tiet ra console de debug.
-        /// </summary>
-        private string PerformOCR(string pdfPath, bool verbose = false)
-        {
-            try
-            {
-                using var library = DocLib.Instance;
-                using var docReader = library.GetDocReader(pdfPath, new PageDimensions(2160, 3840));
-                using var pageReader = docReader.GetPageReader(0);
-                var rawBytes = pageReader.GetImage();
-                int width = pageReader.GetPageWidth(), height = pageReader.GetPageHeight();
-
-                var tessDataPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "tessdata");
-                if (!System.IO.File.Exists(Path.Combine(tessDataPath, "eng.traineddata")))
-                {
-                    if (verbose) Console.WriteLine("  [ERR] Thieu tessdata/eng.traineddata");
-                    return "";
-                }
-
-                using var engine = new TesseractEngine(tessDataPath, "eng", EngineMode.Default);
-                engine.SetVariable("tessedit_char_whitelist",
-                    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-/#:.,() ");
-
-                string bestText = "";
-                float bestConf = 0;
-
-                foreach (var angle in new[] { 0, 90, 180, 270 })
-                {
-                    using var img = Image.LoadPixelData<Rgba32>(rawBytes, width, height);
-                    img.Mutate(x =>
-                    {
-                        if (angle > 0) x.Rotate(angle);
-                        x.Grayscale().Contrast(1.2f);
-                    });
-                    using var ms = new MemoryStream();
-                    img.SaveAsPng(ms); ms.Position = 0;
-                    using var pix = Pix.LoadFromMemory(ms.ToArray());
-                    using var page = engine.Process(pix);
-                    if (page.GetMeanConfidence() > bestConf)
-                    {
-                        bestConf = page.GetMeanConfidence();
-                        bestText = page.GetText();
-                    }
-                }
-
-                // Mo cmt de debug OCR neu can:
-                // if (verbose) Console.WriteLine($"  OCR conf={bestConf:F2} | text={bestText[..Math.Min(200,bestText.Length)]}");
-
-                return bestText ?? "";
-            }
-            catch (Exception ex)
-            {
-                if (verbose) Console.WriteLine($"  [ERR] OCR: {ex.Message}");
-                return "";
-            }
-        }
-
         private void BuildExcelEachPage(List<(string FileName, string InvoiceNo, string AwbNo, string OriginalInvoiceNo, int PageNo)> rows, string outputPath)
         {
             using var wb = new XLWorkbook();
@@ -624,139 +480,81 @@ namespace C0302_HoangThai.Controllers.C0302
             wb.SaveAs(outputPath);
         }
 
-        [HttpGet]
-        public IActionResult DownloadZip(string filePath)
-        {
-            if (string.IsNullOrEmpty(filePath) || !System.IO.File.Exists(filePath))
-                return NotFound("File khong ton tai hoac da bi xoa.");
-            var bytes = System.IO.File.ReadAllBytes(filePath);
-            try { System.IO.File.Delete(filePath); } catch { }
-            return File(bytes, "application/zip", Path.GetFileName(filePath));
-        }
         [HttpPost]
         [RequestSizeLimit(500_000_000)]
         [RequestFormLimits(MultipartBodyLengthLimit = 500_000_000)]
-        public IActionResult RenameByExcel(IFormFile zipFile, IFormFile excelFile)
+        public Task<IActionResult> RenameByExcel(IFormFile zipFile, IFormFile excelFile)
         {
             if (zipFile == null || zipFile.Length == 0)
-                return BadRequest("Thiếu file ZIP");
+                return Task.FromResult<IActionResult>(BadRequest("Thiếu file ZIP"));
 
             if (excelFile == null || excelFile.Length == 0)
-                return BadRequest("Thiếu file Excel mapping");
+                return Task.FromResult<IActionResult>(BadRequest("Thiếu file Excel mapping"));
 
-            string tempFolder = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-            Directory.CreateDirectory(tempFolder);
+            return RunJobAsync([zipFile, excelFile], (job, inputs) => Rename(job, inputs[0], inputs[1]));
+        }
 
-            string extractFolder = Path.Combine(tempFolder, "extract");
+        private PdfJobOutput Rename(PdfJob job, string zipPath, string excelPath)
+        {
+            string tempFolder = job.Directory;
+            var extractFolder = Path.Combine(tempFolder, "extract");
             Directory.CreateDirectory(extractFolder);
 
-            try
+            job.ExtractZip(zipPath, extractFolder);
+
+            var mappings = new List<(string OldName, string NewName)>();
+
+            using (var excel = System.IO.File.OpenRead(excelPath))
+            using (var wb = new XLWorkbook(excel))
             {
-                // =========================
-                // Save ZIP
-                // =========================
-                string zipPath = Path.Combine(tempFolder, zipFile.FileName);
+                var ws = wb.Worksheet(1);
 
-                using (var fs = new FileStream(zipPath, FileMode.Create))
-                    zipFile.CopyTo(fs);
+                int lastRow = ws.LastRowUsed()?.RowNumber() ?? 1;
 
-                ZipFile.ExtractToDirectory(zipPath, extractFolder);
-
-                // =========================
-                // Save Excel
-                // =========================
-                string excelPath = Path.Combine(tempFolder, excelFile.FileName);
-
-                using (var fs = new FileStream(excelPath, FileMode.Create))
-                    excelFile.CopyTo(fs);
-                // =========================
-                // Read Mapping
-                // =========================
-                var mappings = new List<(string OldName, string NewName)>();
-
-                using (var wb = new XLWorkbook(excelPath))
+                for (int row = 2; row <= lastRow; row++)
                 {
-                    var ws = wb.Worksheet(1);
+                    string oldName = ws.Cell(row, 1).GetString().Trim();
+                    string newName = ws.Cell(row, 6).GetString().Trim();
 
-                    int lastRow = ws.LastRowUsed().RowNumber();
-
-                    for (int row = 2; row <= lastRow; row++)
-                    {
-                        string oldName = ws.Cell(row, 1).GetString().Trim();
-                        string newName = ws.Cell(row, 6).GetString().Trim();
-
-                        if (string.IsNullOrWhiteSpace(oldName))
-                            continue;
-
-                        if (string.IsNullOrWhiteSpace(newName))
-                            continue;
-
-                        mappings.Add((oldName, newName));
-                    }
-                }
-                // =========================
-                // Rename Files
-                // =========================
-                foreach (var map in mappings)
-                {
-                    string oldPath = Directory
-                        .GetFiles(extractFolder, "*", SearchOption.AllDirectories)
-                        .FirstOrDefault(x =>
-                            Path.GetFileName(x)
-                            .Equals(map.OldName, StringComparison.OrdinalIgnoreCase));
-
-                    if (string.IsNullOrEmpty(oldPath))
+                    if (string.IsNullOrWhiteSpace(oldName))
                         continue;
 
-                    string folder = Path.GetDirectoryName(oldPath);
-                    string ext = Path.GetExtension(oldPath);
+                    if (string.IsNullOrWhiteSpace(newName))
+                        continue;
 
-                    string safeNewName = SanitizeFileName(map.NewName);
-
-                    if (!safeNewName.EndsWith(ext, StringComparison.OrdinalIgnoreCase))
-                        safeNewName += ext;
-
-                    string newPath = Path.Combine(folder, safeNewName);
-
-                    int counter = 2;
-
-                    while (System.IO.File.Exists(newPath))
-                    {
-                        string fileNameOnly = Path.GetFileNameWithoutExtension(safeNewName);
-                        newPath = Path.Combine(folder, $"{fileNameOnly}_{counter++}{ext}");
-                    }
-
-                    System.IO.File.Move(oldPath, newPath);
+                    mappings.Add((oldName, newName));
                 }
-
-                // =========================
-                // Export ZIP mới
-                // =========================
-                string outZip = Path.Combine(
-                    tempFolder,
-                    $"Renamed_{DateTime.Now:yyyyMMddHHmmss}.zip");
-
-                ZipFile.CreateFromDirectory(extractFolder, outZip);
-
-                return PhysicalFile(
-                    outZip,
-                    "application/zip",
-                    Path.GetFileName(outZip));
             }
-            catch (Exception ex)
+            job.ReportUnits(0, mappings.Count, "Đang đổi tên tệp.", 20, 90);
+            int renamed = 0;
+            foreach (var map in mappings)
             {
-                return BadRequest(ex.ToString());
+                job.ReportUnits(renamed++, mappings.Count, "Đang đổi tên tệp.", 20, 90);
+                string? oldPath = Directory
+                    .GetFiles(extractFolder, "*", SearchOption.AllDirectories)
+                    .FirstOrDefault(x =>
+                        Path.GetFileName(x)
+                        .Equals(map.OldName, StringComparison.OrdinalIgnoreCase));
+
+                if (string.IsNullOrEmpty(oldPath))
+                    continue;
+
+                string folder = Path.GetDirectoryName(oldPath)!;
+                string ext = Path.GetExtension(oldPath);
+
+                string safeNewName = SanitizeFileName(map.NewName);
+
+                if (!safeNewName.EndsWith(ext, StringComparison.OrdinalIgnoreCase))
+                    safeNewName += ext;
+
+                string target = PdfPageRanges.AvailableName(folder, Path.GetFileNameWithoutExtension(safeNewName),
+                    Path.GetExtension(safeNewName), firstSuffix: 2);
+                System.IO.File.Move(oldPath, Path.Combine(folder, target));
             }
+
+            job.ReportUnits(mappings.Count, mappings.Count, "Đang đổi tên tệp.", 20, 90);
+            return job.CreateZip(extractFolder, $"Renamed_{DateTime.Now:yyyyMMddHHmmss}.zip");
         }
 
-
-        public class RenamedFileInfo
-        {
-            public string OriginalName { get; set; }
-            public string NewName { get; set; }
-            public string FilePath { get; set; }
-            public string ExtractedCode { get; set; }
-            public string OriginalInvoiceNo { get; set; }
-        }
     }
 }

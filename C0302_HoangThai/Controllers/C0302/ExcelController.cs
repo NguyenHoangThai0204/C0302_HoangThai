@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using C0302_HoangThai.Service.S0302;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Http;
 using ClosedXML.Excel;
 using System;
@@ -9,7 +10,7 @@ using System.IO.Compression;
 
 namespace C0302_HoangThai.Controllers.C0302
 {
-    public class ExcelController : Controller
+    public class ExcelController(SpreadsheetDownloads downloads) : Controller
     {
         // GET: Excel/Upload
         [HttpGet]
@@ -154,11 +155,11 @@ namespace C0302_HoangThai.Controllers.C0302
                     }
 
                     // Nén tất cả file vào 1 file ZIP
-                    var zipPath = Path.Combine(Path.GetTempPath(), $"ExcelFiles_{DateTime.Now:yyyyMMddHHmmss}.zip");
+                    var zipPath = SpreadsheetDownloads.CreatePath($"ExcelFiles_{DateTime.Now:yyyyMMddHHmmss}.zip");
                     ZipFile.CreateFromDirectory(tempFolder, zipPath);
 
                     ViewBag.Files = fileInfos;
-                    ViewBag.ZipPath = zipPath;
+                    ViewBag.ZipPath = downloads.Register(zipPath);
                     ViewBag.TotalFiles = fileInfos.Count;
                     ViewBag.Success = $"Đã tách thành công {fileInfos.Count} file!";
 
@@ -174,21 +175,13 @@ namespace C0302_HoangThai.Controllers.C0302
 
         // GET: Excel/DownloadZip
         [HttpGet]
+        [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
         public IActionResult DownloadZip(string filePath)
         {
-            if (string.IsNullOrEmpty(filePath) || !System.IO.File.Exists(filePath))
-            {
-                return NotFound();
-            }
-
-            var memory = new MemoryStream();
-            using (var stream = new FileStream(filePath, FileMode.Open))
-            {
-                stream.CopyTo(memory);
-            }
-            memory.Position = 0;
-
-            return File(memory, "application/zip", Path.GetFileName(filePath));
+            var path = downloads.Find(filePath);
+            return path is null || !System.IO.File.Exists(path)
+                ? NotFound()
+                : PhysicalFile(path, "application/zip", Path.GetFileName(path));
         }
 
         /// <summary>

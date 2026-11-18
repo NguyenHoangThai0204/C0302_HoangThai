@@ -1,11 +1,12 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using C0302_HoangThai.Service.S0302;
+using Microsoft.AspNetCore.Mvc;
 using ClosedXML.Excel;
 using System.IO.Compression;
 using System.Text.RegularExpressions;
 
 namespace C0302_HoangThai.Controllers.C0302
 {
-    public class RenameExcelTachFileController : Controller
+    public class RenameExcelTachFileController(SpreadsheetDownloads downloads) : Controller
     {
         [HttpGet]
         public IActionResult Upload()
@@ -32,7 +33,7 @@ namespace C0302_HoangThai.Controllers.C0302
                 var tempFolder = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
                 Directory.CreateDirectory(tempFolder);
 
-                var inputPath = Path.Combine(tempFolder, excelFile.FileName);
+                var inputPath = Path.Combine(tempFolder, "input.xlsx");
                 using (var fs = new FileStream(inputPath, FileMode.Create))
                     excelFile.CopyTo(fs);
 
@@ -52,7 +53,7 @@ namespace C0302_HoangThai.Controllers.C0302
                 System.IO.File.WriteAllLines(Path.Combine(tempFolder, "split_log.txt"), debugLogs);
 
                 // Đóng gói ZIP
-                var outputZipPath = Path.Combine(Path.GetTempPath(), $"Split_Excel_{DateTime.Now:yyyyMMddHHmmss}.zip");
+                var outputZipPath = SpreadsheetDownloads.CreatePath($"Split_Excel_{DateTime.Now:yyyyMMddHHmmss}.zip");
                 // Chỉ zip các file .xlsx kết quả (không zip file gốc và log)
                 var outputFolder = Path.Combine(tempFolder, "output");
                 Directory.CreateDirectory(outputFolder);
@@ -62,7 +63,7 @@ namespace C0302_HoangThai.Controllers.C0302
 
                 ViewBag.Success = $"Đã tách thành công {fileInfos.Count} file Excel!";
                 ViewBag.Files = fileInfos;
-                ViewBag.ZipPath = outputZipPath;
+                ViewBag.ZipPath = downloads.Register(outputZipPath);
                 ViewBag.TotalFiles = fileInfos.Count;
                 ViewBag.DebugLogs = debugLogs;
 
@@ -77,17 +78,13 @@ namespace C0302_HoangThai.Controllers.C0302
         }
 
         [HttpGet]
+        [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
         public IActionResult DownloadZip(string filePath)
         {
-            if (string.IsNullOrEmpty(filePath) || !System.IO.File.Exists(filePath))
-                return NotFound();
-
-            var memory = new MemoryStream();
-            using (var stream = new FileStream(filePath, FileMode.Open))
-                stream.CopyTo(memory);
-            memory.Position = 0;
-
-            return File(memory, "application/zip", Path.GetFileName(filePath));
+            var path = downloads.Find(filePath);
+            return path is null || !System.IO.File.Exists(path)
+                ? NotFound()
+                : PhysicalFile(path, "application/zip", Path.GetFileName(path));
         }
 
         // ── Đọc file Excel, tách theo nhóm header ──

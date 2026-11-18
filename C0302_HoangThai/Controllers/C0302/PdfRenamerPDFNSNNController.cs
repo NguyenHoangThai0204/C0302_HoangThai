@@ -1,41 +1,16 @@
-﻿using Microsoft.AspNetCore.Http;
+using C0302_HoangThai.Service.S0302;
 using Microsoft.AspNetCore.Mvc;
 
 using iText.Kernel.Pdf;
-using iText.Kernel.Pdf.Canvas.Parser;
-using iText.Kernel.Pdf.Canvas.Parser.Listener;
 
 using ClosedXML.Excel;
 
-using Docnet.Core;
-using Docnet.Core.Models;
-
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing;
-
-using Tesseract;
-
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.IO.Compression;
-using System.Linq;
 using System.Text.RegularExpressions;
 
 namespace C0302_HoangThai.Controllers.C0302
 {
-    public class PdfRenamerPDFNSNNController : Controller
+    public class PdfRenamerPDFNSNNController(PdfJobs jobs, PdfOcr ocr) : PdfJobController(jobs)
     {
-        private static readonly string TessDataPath =
-            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "tessdata");
-
-        private static readonly bool HasTesseract =
-            Directory.Exists(TessDataPath) &&
-            System.IO.File.Exists(Path.Combine(TessDataPath, "eng.traineddata"));
-
-        private static readonly object _pdfiumLock = new object();
-
         private const string NSNN_SUFFIX = "_NSNN";
         private const string DEFAULT_DUOI_FILE = "NSNN";
 
@@ -45,375 +20,161 @@ namespace C0302_HoangThai.Controllers.C0302
         [HttpPost]
         [RequestSizeLimit(500_000_000)]
         [RequestFormLimits(MultipartBodyLengthLimit = 500_000_000)]
-        public IActionResult Step1_SplitAndExcel(
-            IFormFile bigPdf,
-            string? pageRanges,
-            int? pagesToRead,
-            string? readPosition)
+        public Task<IActionResult> Step1_SplitAndExcel(IFormFile bigPdf, string? pageRanges, int? pagesToRead, string? readPosition)
         {
-            if (bigPdf == null || bigPdf.Length == 0)
-                return BadRequest("Vui lòng chọn file PDF.");
-            if (!bigPdf.FileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
-                return BadRequest("File phải có định dạng .pdf");
-
+            if (bigPdf == null || bigPdf.Length == 0 || !bigPdf.FileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+                return Task.FromResult<IActionResult>(BadRequest("Vui lòng chọn file .pdf."));
             if (string.IsNullOrWhiteSpace(pageRanges))
-                return BadRequest("Vui lòng nhập dãy số trang bắt đầu. VD: 1,5");
+                return Task.FromResult<IActionResult>(BadRequest("Vui lòng nhập dãy số trang bắt đầu."));
 
-            int N = (pagesToRead.HasValue && pagesToRead.Value > 0) ? pagesToRead.Value : 3;
-            if (N < 1 || N > 20)
-                return BadRequest("Số trang cần đọc phải từ 1 đến 20.");
+            int count = pagesToRead is > 0 ? pagesToRead.Value : 3;
+            if (count > 20)
+                return Task.FromResult<IActionResult>(BadRequest("Số trang cần đọc phải từ 1 đến 20."));
 
-            string position = (readPosition ?? "top").Trim().ToLowerInvariant();
-            if (position != "top" && position != "bottom" && position != "both")
-                position = "top";
-
-            var tempFolder = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-            Directory.CreateDirectory(tempFolder);
-
-            try
+            string position = readPosition?.Trim().ToLowerInvariant() switch
             {
-                var inputPath = Path.Combine(tempFolder, "input.pdf");
-                using (var fs = new FileStream(inputPath, FileMode.Create, FileAccess.Write, FileShare.None, 65536))
-                    bigPdf.CopyTo(fs);
+                "bottom" => "bottom",
+                "both" => "both",
+                _ => "top"
+            };
 
-                int totalPages;
-                using (var reader = new PdfReader(inputPath))
-                using (var doc = new PdfDocument(reader))
-                    totalPages = doc.GetNumberOfPages();
+            return RunJobAsync([bigPdf], (job, inputs) => SplitRanges(job, inputs[0], pageRanges, count, position));
+        }
 
-                if (totalPages == 0)
-                    return BadRequest("File PDF không có trang nào.");
+        private PdfJobOutput SplitRanges(PdfJob job, string path, string pageRanges, int count, string position)
+        {
+            using var source = new PdfDocument(new PdfReader(path));
+            using var scan = ocr.Open(path);
+            var ranges = PdfPageRanges.FromStarts(pageRanges, source.GetNumberOfPages());
+            var outputFolder = Directory.CreateDirectory(Path.Combine(job.Directory, "output")).FullName;
+            var rows = new List<(string ChunkName, List<string> Stks, string TenDatFile)>();
+            int total = ranges.Sum(range => Math.Min(position == "both" ? count * 2 : count, range.End - range.Start + 1));
+            int completed = 0;
+            job.ReportUnits(completed, total, "Đang đọc số tờ khai.");
 
-                List<int> startPages;
-                try
-                {
-                    startPages = pageRanges!
-                        .Split(',', StringSplitOptions.RemoveEmptyEntries)
-                        .Select(s => int.Parse(s.Trim()))
-                        .OrderBy(x => x)
-                        .Distinct()
-                        .ToList();
-                }
-                catch
-                {
-                    return BadRequest("Dãy số trang không hợp lệ. Ví dụ: 1,5");
-                }
-
-                if (startPages.Count == 0 || startPages[0] != 1)
-                    return BadRequest("Dãy số trang phải bắt đầu bằng 1.");
-
-                var ranges = new List<(int start, int end)>();
-                for (int i = 0; i < startPages.Count; i++)
-                {
-                    int s = startPages[i];
-                    int e = (i + 1 < startPages.Count) ? startPages[i + 1] - 1 : totalPages;
-
-                    if (s > totalPages)
-                        return BadRequest($"Trang {s} vượt quá tổng số trang ({totalPages}).");
-
-                    ranges.Add((s, e));
-                }
-
-                var chunkFolder = Path.Combine(tempFolder, "chunks");
-                Directory.CreateDirectory(chunkFolder);
-
-                var rows = new List<(string ChunkName, List<string> Stks, string TenDatFile)>();
-                var nameCount = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-
-                for (int i = 0; i < ranges.Count; i++)
-                {
-                    var (startPage, endPage) = ranges[i];
-                    int chunkPageCount = endPage - startPage + 1;
-
-                    var tempChunk = Path.Combine(chunkFolder, $"_tmp_{i}.pdf");
-                    SplitPages(inputPath, tempChunk, startPage, endPage);
-
-                    // Xác định trang đọc
-                    List<int> pageIndices = new List<int>();
-                    if (position == "bottom")
-                    {
-                        int start = Math.Max(0, chunkPageCount - N);
-                        pageIndices = Enumerable.Range(start, chunkPageCount - start).ToList();
-                    }
-                    else if (position == "both")
-                    {
-                        // Đọc cả đầu và cuối, gộp lại (loại bỏ trùng)
-                        int startBottom = Math.Max(0, chunkPageCount - N);
-                        var bottomIndices = Enumerable.Range(startBottom, chunkPageCount - startBottom).ToList();
-                        var topIndices = Enumerable.Range(0, Math.Min(N, chunkPageCount)).ToList();
-                        pageIndices = topIndices.Union(bottomIndices).OrderBy(x => x).ToList();
-                    }
-                    else
-                    {
-                        // top
-                        pageIndices = Enumerable.Range(0, Math.Min(N, chunkPageCount)).ToList();
-                    }
-
-                    var stks = new List<string>();
-                    foreach (int p in pageIndices)
-                    {
-                        string ocr = OcrPageFromFile(tempChunk, p, position);
-                        stks.Add(ExtractSoToKhai(ocr));
-                    }
-                    while (stks.Count < N) stks.Add("");
-
-                    string votedStk = VoteSoToKhai(stks, i + 1);
-                    string tenDatFile = votedStk + NSNN_SUFFIX;
-
-                    string baseName = SanitizeFileName(tenDatFile);
-                    if (nameCount.ContainsKey(baseName))
-                    {
-                        nameCount[baseName]++;
-                        baseName = $"{baseName}_{nameCount[baseName]}";
-                    }
-                    else
-                    {
-                        nameCount[baseName] = 0;
-                    }
-
-                    string chunkName = $"{baseName}.pdf";
-                    string chunkPath = Path.Combine(chunkFolder, chunkName);
-                    System.IO.File.Move(tempChunk, chunkPath);
-
-                    rows.Add((chunkName, stks, tenDatFile));
-                    GC.Collect(0, GCCollectionMode.Optimized);
-                }
-
-                string excelPath = Path.Combine(tempFolder, "Mapping.xlsx");
-                BuildExcel(rows, N, position, excelPath);
-
-                var outZipFolder = Path.Combine(tempFolder, "for_zip");
-                Directory.CreateDirectory(outZipFolder);
-
-                foreach (var f in Directory.GetFiles(chunkFolder))
-                    System.IO.File.Copy(f, Path.Combine(outZipFolder, Path.GetFileName(f)));
-                System.IO.File.Copy(excelPath, Path.Combine(outZipFolder, "Mapping.xlsx"));
-
-                string zipPath = Path.Combine(tempFolder, "Step1_Output.zip");
-                ZipFile.CreateFromDirectory(outZipFolder, zipPath);
-
-                return PhysicalFile(zipPath, "application/zip",
-                    $"Step1_NSNN_{DateTime.Now:yyyyMMdd_HHmmss}.zip");
-            }
-            catch (Exception ex)
+            for (int i = 0; i < ranges.Count; i++)
             {
-                try { Directory.Delete(tempFolder, true); } catch { }
-                return BadRequest($"Lỗi xử lý: {ex.Message}");
+                var (start, end) = ranges[i];
+                int pages = Math.Min(count, end - start + 1);
+                var first = Enumerable.Range(start, pages);
+                var last = Enumerable.Range(end - pages + 1, pages);
+                var selected = position switch
+                {
+                    "bottom" => last,
+                    "both" => first.Union(last),
+                    _ => first
+                };
+
+                var numbers = new List<string>();
+                foreach (int page in selected)
+                {
+                    numbers.Add(scan.ReadDeclaration(source, page, 1, ExtractSoToKhai));
+                    job.ReportUnits(++completed, total, "Đang đọc số tờ khai.");
+                }
+                while (numbers.Count < count)
+                    numbers.Add("");
+
+                string name = VoteSoToKhai(numbers, i + 1) + NSNN_SUFFIX;
+                string fileName = PdfPageRanges.WriteChunk(source, start, end, outputFolder, SanitizeFileName(name), firstSuffix: 1);
+                rows.Add((fileName, numbers, name));
             }
+
+            job.Report(90, "Đang tạo Mapping.xlsx.");
+            BuildExcel(rows, count, position, Path.Combine(outputFolder, "Mapping.xlsx"));
+            return job.CreateZip(outputFolder, $"Step1_NSNN_{DateTime.Now:yyyyMMdd_HHmmss}.zip");
         }
 
         [HttpPost]
         [RequestSizeLimit(500_000_000)]
         [RequestFormLimits(MultipartBodyLengthLimit = 500_000_000)]
-        public IActionResult Step2_RenameFiles(IFormFile pdfZip, IFormFile mappingExcel)
+        public Task<IActionResult> Step2_RenameFiles(IFormFile pdfZip, IFormFile mappingExcel)
         {
             if (pdfZip == null || pdfZip.Length == 0)
-                return BadRequest("Thiếu file ZIP chứa PDF chunks.");
+                return Task.FromResult<IActionResult>(BadRequest("Thiếu file ZIP chứa PDF chunks."));
             if (mappingExcel == null || mappingExcel.Length == 0)
-                return BadRequest("Thiếu file Excel mapping.");
+                return Task.FromResult<IActionResult>(BadRequest("Thiếu file Excel mapping."));
 
-            var tempFolder = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-            Directory.CreateDirectory(tempFolder);
-
-            try
-            {
-                var pdfFolder = Path.Combine(tempFolder, "pdfs");
-                Directory.CreateDirectory(pdfFolder);
-                var zipPath = Path.Combine(tempFolder, "input.zip");
-                using (var fs = new FileStream(zipPath, FileMode.Create)) pdfZip.CopyTo(fs);
-                ZipFile.ExtractToDirectory(zipPath, pdfFolder, overwriteFiles: true);
-
-                var excelPath = Path.Combine(tempFolder, "mapping.xlsx");
-                using (var fs = new FileStream(excelPath, FileMode.Create)) mappingExcel.CopyTo(fs);
-
-                var mapping = new Dictionary<string, (string TenMoi, string DuoiFile)>(
-                    StringComparer.OrdinalIgnoreCase);
-
-                using (var wb = new XLWorkbook(excelPath))
-                {
-                    var ws = wb.Worksheet("Mapping");
-                    int lastCol = ws.LastColumnUsed()?.ColumnNumber() ?? 0;
-                    int lastRow = ws.LastRowUsed()?.RowNumber() ?? 1;
-
-                    int colFileName = -1, colTenMoi = -1, colDuoiFile = -1;
-
-                    for (int c = 1; c <= lastCol; c++)
-                    {
-                        string h = ws.Cell(1, c).GetString()?.Trim() ?? "";
-                        if (h.StartsWith("Tên file", StringComparison.OrdinalIgnoreCase)) colFileName = c;
-                        if (h.StartsWith("TenMoi", StringComparison.OrdinalIgnoreCase)) colTenMoi = c;
-                        if (h.StartsWith("DuoiFile", StringComparison.OrdinalIgnoreCase)) colDuoiFile = c;
-                    }
-
-                    if (colFileName < 0 || colTenMoi < 0)
-                        return BadRequest("File Excel không đúng định dạng.");
-
-                    for (int r = 2; r <= lastRow; r++)
-                    {
-                        string orig = ws.Cell(r, colFileName).GetString()?.Trim();
-                        string tenMoi = ws.Cell(r, colTenMoi).GetString()?.Trim();
-                        string duoiFile = colDuoiFile > 0
-                            ? ws.Cell(r, colDuoiFile).GetString()?.Trim()
-                            : null;
-                        // Không có cột / để trống -> mặc định NSNN
-                        if (string.IsNullOrWhiteSpace(duoiFile)) duoiFile = DEFAULT_DUOI_FILE;
-
-                        if (string.IsNullOrEmpty(orig)) continue;
-                        mapping[orig] = (tenMoi, duoiFile);
-                    }
-                }
-
-                var outFolder = Path.Combine(tempFolder, "renamed");
-                Directory.CreateDirectory(outFolder);
-
-                var nameCount = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-
-                foreach (var srcFile in Directory.GetFiles(pdfFolder))
-                {
-                    string originalName = Path.GetFileName(srcFile);
-                    if (originalName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
-                        continue;
-
-                    string newName;
-                    if (mapping.TryGetValue(originalName, out var info))
-                    {
-                        // ✅ Tên mới = TenMoi + "_" + DuoiFile  (vd: 108712318960_NSNN.pdf)
-                        // ✅ TenMoi để trống -> unknown_[DuoiFile].pdf
-                        string prefix = !string.IsNullOrWhiteSpace(info.TenMoi) ? info.TenMoi : "unknown";
-                        newName = $"{prefix}_{info.DuoiFile}.pdf";
-                    }
-                    else
-                    {
-                        newName = originalName;
-                    }
-
-                    string finalName = SanitizeFileName(Path.GetFileNameWithoutExtension(newName));
-                    if (nameCount.ContainsKey(finalName))
-                    {
-                        nameCount[finalName]++;
-                        finalName = $"{finalName}_{nameCount[finalName]}";
-                    }
-                    else
-                    {
-                        nameCount[finalName] = 0;
-                    }
-
-                    System.IO.File.Copy(srcFile, Path.Combine(outFolder, $"{finalName}.pdf"), true);
-                }
-
-                string resultZip = Path.Combine(tempFolder, "renamed.zip");
-                ZipFile.CreateFromDirectory(outFolder, resultZip);
-
-                return PhysicalFile(resultZip, "application/zip",
-                    $"Renamed_NSNN_{DateTime.Now:yyyyMMdd_HHmmss}.zip");
-            }
-            catch (Exception ex)
-            {
-                try { Directory.Delete(tempFolder, true); } catch { }
-                return BadRequest($"Lỗi: {ex.Message}");
-            }
+            return RunJobAsync([pdfZip, mappingExcel], (job, inputs) => Rename(job, inputs[0], inputs[1]));
         }
 
-
-        private void SplitPages(string sourcePath, string destPath, int startPage, int endPage)
+        private PdfJobOutput Rename(PdfJob job, string zipPath, string excelPath)
         {
-            using var reader = new PdfReader(sourcePath);
-            using var srcDoc = new PdfDocument(reader);
-            using var writer = new PdfWriter(destPath);
-            using var dstDoc = new PdfDocument(writer);
-            srcDoc.CopyPagesTo(startPage, endPage, dstDoc);
-        }
+            string tempFolder = job.Directory;
+            var pdfFolder = Path.Combine(tempFolder, "pdfs");
+            Directory.CreateDirectory(pdfFolder);
+            job.ExtractZip(zipPath, pdfFolder);
 
-        private string OcrPageFromFile(string pdfPath, int pageIndex, string position)
-        {
-            string textLayer = "";
-            try
+            var mapping = new Dictionary<string, (string TenMoi, string DuoiFile)>(
+                StringComparer.OrdinalIgnoreCase);
+
+            using (var excel = System.IO.File.OpenRead(excelPath))
+            using (var wb = new XLWorkbook(excel))
             {
-                using var reader = new PdfReader(pdfPath);
-                using var pdfDoc = new PdfDocument(reader);
-                int iTextPage = pageIndex + 1;
-                if (iTextPage <= pdfDoc.GetNumberOfPages())
+                var ws = wb.Worksheet("Mapping");
+                int lastCol = ws.LastColumnUsed()?.ColumnNumber() ?? 0;
+                int lastRow = ws.LastRowUsed()?.RowNumber() ?? 1;
+
+                int colFileName = -1, colTenMoi = -1, colDuoiFile = -1;
+
+                for (int c = 1; c <= lastCol; c++)
                 {
-                    textLayer = PdfTextExtractor.GetTextFromPage(
-                        pdfDoc.GetPage(iTextPage),
-                        new SimpleTextExtractionStrategy()) ?? "";
+                    string h = ws.Cell(1, c).GetString()?.Trim() ?? "";
+                    if (h.StartsWith("Tên file", StringComparison.OrdinalIgnoreCase)) colFileName = c;
+                    if (h.StartsWith("TenMoi", StringComparison.OrdinalIgnoreCase)) colTenMoi = c;
+                    if (h.StartsWith("DuoiFile", StringComparison.OrdinalIgnoreCase)) colDuoiFile = c;
                 }
-            }
-            catch { }
 
-            if (textLayer.Length >= 50)
-                return textLayer;
+                if (colFileName < 0 || colTenMoi < 0)
+                    throw new PdfJobInputException("File Excel không đúng định dạng.");
 
-            if (!HasTesseract) return textLayer;
-
-            byte[] raw = null;
-            int w = 0, h = 0;
-
-            lock (_pdfiumLock)
-            {
-                try
+                for (int r = 2; r <= lastRow; r++)
                 {
-                    var library = DocLib.Instance;
-                    using var docReader = library.GetDocReader(pdfPath, new PageDimensions(2067, 2924));
+                    string orig = ws.Cell(r, colFileName).GetString().Trim();
+                    string tenMoi = ws.Cell(r, colTenMoi).GetString().Trim();
+                    string? duoiFile = colDuoiFile > 0
+                        ? ws.Cell(r, colDuoiFile).GetString()?.Trim()
+                        : null;
+                    // Không có cột / để trống -> mặc định NSNN
+                    if (string.IsNullOrWhiteSpace(duoiFile)) duoiFile = DEFAULT_DUOI_FILE;
 
-                    if (pageIndex >= docReader.GetPageCount())
-                        return textLayer;
-
-                    using var pgReader = docReader.GetPageReader(pageIndex);
-                    w = pgReader.GetPageWidth();
-                    h = pgReader.GetPageHeight();
-                    raw = pgReader.GetImage();
-                }
-                catch
-                {
-                    return textLayer;
+                    if (string.IsNullOrEmpty(orig)) continue;
+                    mapping[orig] = (tenMoi, duoiFile);
                 }
             }
 
-            if (raw == null || w <= 0 || h <= 0)
-                return textLayer;
+            var outFolder = Path.Combine(tempFolder, "renamed");
+            Directory.CreateDirectory(outFolder);
 
-            try
+            var sourceFiles = Directory.GetFiles(pdfFolder);
+            job.ReportUnits(0, sourceFiles.Length, "Đang đổi tên tệp.", 20, 90);
+            int renamed = 0;
+            foreach (var srcFile in sourceFiles)
             {
-                // FIX: không crop theo position nữa.
-                // "position" chỉ quyết định ĐỌC TRANG NÀO (đầu/cuối file),
-                // còn số tờ khai có thể nằm ở bất kỳ vị trí nào trong trang
-                // (tờ khai: ~8% từ trên, chứng từ ghi sổ: ~25%, giấy nộp tiền: ~50%)
-                // => OCR toàn trang.
-                int cropY = 0;
-                int cropH = h;
-                if (cropH < 1) cropH = 1;
+                job.ReportUnits(renamed++, sourceFiles.Length, "Đang đổi tên tệp.", 20, 90);
+                string originalName = Path.GetFileName(srcFile);
+                if (originalName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
+                    continue;
 
-                byte[] png;
-                using (var img = Image.LoadPixelData<Bgra32>(raw, w, h))
+                string newName;
+                if (mapping.TryGetValue(originalName, out var info))
                 {
-                    img.Mutate(ctx => ctx
-                        .Crop(new Rectangle(0, cropY, w, cropH))
-                        .Resize(w * 2, cropH * 2)
-                        .Grayscale()
-                        .Contrast(1.2f)
-                        .BinaryThreshold(0.38f));
-                    using var ms = new MemoryStream();
-                    img.SaveAsPng(ms);
-                    png = ms.ToArray();
+                    // ✅ Tên mới = TenMoi + "_" + DuoiFile  (vd: 108712318960_NSNN.pdf)
+                    // ✅ TenMoi để trống -> unknown_[DuoiFile].pdf
+                    string prefix = !string.IsNullOrWhiteSpace(info.TenMoi) ? info.TenMoi : "unknown";
+                    newName = $"{prefix}_{info.DuoiFile}.pdf";
+                }
+                else
+                {
+                    newName = originalName;
                 }
 
-                string lang = System.IO.File.Exists(Path.Combine(TessDataPath, "vie.traineddata"))
-                    ? "vie+eng" : "eng";
-
-                using var engine = new TesseractEngine(TessDataPath, lang, EngineMode.LstmOnly);
-                engine.SetVariable("tessedit_char_whitelist",
-                    "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz :-./\n");
-
-                using var pix = Pix.LoadFromMemory(png);
-                using var page = engine.Process(pix, PageSegMode.Auto);
-
-                return page.GetText() ?? "";
+                string finalName = SanitizeFileName(Path.GetFileNameWithoutExtension(newName));
+                string target = PdfPageRanges.AvailableName(outFolder, finalName, ".pdf", firstSuffix: 1);
+                System.IO.File.Copy(srcFile, Path.Combine(outFolder, target));
             }
-            catch
-            {
-                return textLayer;
-            }
+
+            job.ReportUnits(sourceFiles.Length, sourceFiles.Length, "Đang đổi tên tệp.", 20, 90);
+            return job.CreateZip(outFolder, $"Renamed_NSNN_{DateTime.Now:yyyyMMdd_HHmmss}.zip");
         }
 
         private string ExtractSoToKhai(string ocrText)
@@ -635,7 +396,7 @@ namespace C0302_HoangThai.Controllers.C0302
         private string SanitizeFileName(string name)
         {
             if (string.IsNullOrWhiteSpace(name)) return "Unknown";
-            char[] invalid = Path.GetInvalidFileNameChars();
+            char[] invalid = [.. Path.GetInvalidFileNameChars(), .. "<>:\"/\\|?*"];
             string safe = new string(name.Select(c => invalid.Contains(c) ? '_' : c).ToArray());
             return safe[..Math.Min(safe.Length, 150)];
         }

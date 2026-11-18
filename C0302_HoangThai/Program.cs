@@ -7,6 +7,14 @@ using System.Text.Encodings.Web;
 using System.Text.Unicode;
 
 var builder = WebApplication.CreateBuilder(args);
+if (int.TryParse(builder.Configuration["PORT"], out int port) && port is > 0 and <= 65535)
+    builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+
+builder.Services.AddSingleton<PdfOcr>();
+builder.Services.AddSingleton<PdfJobs>();
+builder.Services.AddHostedService(services => services.GetRequiredService<PdfJobs>());
+builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<SpreadsheetDownloads>();
 
 // Add services to the container.
 builder.Services.AddControllersWithViews()
@@ -59,19 +67,26 @@ CultureInfo.DefaultThreadCurrentCulture = cultureInfo;
 CultureInfo.DefaultThreadCurrentUICulture = cultureInfo;
 
 var app = builder.Build();
+if (app.Configuration.GetValue<bool>("Ocr:ValidateOnStartup"))
+    app.Services.GetRequiredService<PdfOcr>().Validate();
 
 // Configure the HTTP request pipeline.
+bool behindRender = app.Configuration.GetValue<bool>("RENDER");
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
-    app.UseHsts();
+    if (!behindRender)
+        app.UseHsts();
 }
 
-app.UseHttpsRedirection();
+if (!behindRender)
+    app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
 app.UseSession();       // ✅ TRƯỚC UseAuthorization
 app.UseAuthorization(); // ✅ SAU UseSession
+
+app.MapGet("/healthz", () => Results.Ok("ok"));
 
 app.MapControllerRoute(
     name: "default",

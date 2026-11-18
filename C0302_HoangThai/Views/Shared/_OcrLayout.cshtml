@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <title>@ViewData["Title"] · Trung tâm tài liệu</title>
+    <link rel="stylesheet" href="~/dist/lib/webfont/tabler-icons.css" />
+    <link rel="stylesheet" href="~/dist/css/CSS0302/ocr-workspace.css" asp-append-version="true" />
+</head>
+<body>
+    <header class="workspace-header">
+        <div class="workspace-width workspace-nav">
+            <a class="workspace-brand" asp-controller="Home" asp-action="Index">
+                <span class="brand-icon"><i class="ti ti-files" aria-hidden="true"></i></span>
+                Trung tâm tài liệu
+            </a>
+            <nav aria-label="Các công cụ OCR">
+                <details class="nav-tools">
+                    <summary>Công cụ PDF <i class="ti ti-chevron-down" aria-hidden="true"></i></summary>
+                    <div class="nav-tools-links">
+                        <a asp-controller="PdfV2" asp-action="Upload">Tờ khai nhập khẩu</a>
+                        <a asp-controller="PdfRenamer3Page" asp-action="Upload">Tờ khai xuất khẩu</a>
+                        <a asp-controller="PdfRenamerPDFNSNN" asp-action="Upload">Chứng từ NSNN</a>
+                        <a asp-controller="PdfRenamerPDFCu" asp-action="Upload">Chứng từ POD</a>
+                        <a asp-controller="MergePDF" asp-action="Upload">Gộp PDF</a>
+                    </div>
+                </details>
+            </nav>
+        </div>
+    </header>
+    <main class="workspace-width workspace-main">
+        @RenderBody()
+    </main>
+</body>
+</html>
