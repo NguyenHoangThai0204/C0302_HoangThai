@@ -15,11 +15,48 @@ public sealed class PdfOcrUnavailableException(Exception inner) : Exception("OCR
 public sealed class PdfOcr : IDisposable
 {
     private readonly Lazy<TesseractHandle> engine;
+    private readonly Lazy<TesseractHandle?> orientationEngine;
 
     public PdfOcr(IConfiguration configuration)
     {
         string dataDirectory = configuration["Ocr:TessDataPath"] ?? Path.Combine(AppContext.BaseDirectory, "tessdata");
         engine = new(() => Initialize(dataDirectory));
+        orientationEngine = new(() => InitializeOrientationEngine(dataDirectory));
+    }
+
+    private static TesseractHandle? InitializeOrientationEngine(string dataDirectory)
+    {
+        if (!File.Exists(Path.Combine(dataDirectory, "osd.traineddata")))
+            return null;
+
+        var handle = TesseractNative.Create();
+        if (!handle.IsInvalid && TesseractNative.Init(handle, dataDirectory, "osd", mode: 0) == 0)
+            return handle;
+
+        handle.Dispose();
+        return null;
+    }
+
+    internal int? DetectCorrection(byte[] pixels, int width, int height)
+    {
+        // Initialize the recognition engine first so native loading failures use the usual OCR error path.
+        _ = engine.Value;
+        if (orientationEngine.Value is not { } handle)
+            return null;
+
+        TesseractNative.SetPageSegMode(handle, mode: 0);
+        TesseractNative.SetImage(handle, pixels, width, height, bytesPerPixel: 1, stride: width);
+        TesseractNative.SetSourceResolution(handle, 250);
+        try
+        {
+            return TesseractNative.DetectOrientation(handle, out int degrees, out float confidence, out _, out _) != 0 && confidence > 0
+                ? (360 - degrees) % 360 / 90
+                : null;
+        }
+        finally
+        {
+            TesseractNative.Clear(handle);
+        }
     }
 
     public void Validate()
@@ -92,12 +129,15 @@ public sealed class PdfOcr : IDisposable
     {
         if (engine.IsValueCreated)
             engine.Value.Dispose();
+        if (orientationEngine.IsValueCreated)
+            orientationEngine.Value?.Dispose();
     }
 }
 
 public sealed class PdfOcrDocument(PdfOcr ocr, string path) : IDisposable
 {
     private IDocReader? renderer;
+    private int? lastAcceptedCorrection;
 
     public static string ReadText(PdfDocument document, int pageNumber) =>
         PdfTextExtractor.GetTextFromPage(document.GetPage(pageNumber), new SimpleTextExtractionStrategy()) ?? "";
@@ -109,7 +149,7 @@ public sealed class PdfOcrDocument(PdfOcr ocr, string path) : IDisposable
         return value.Length > 0 ? value : extract(RecognizePage(pageNumber, cropFraction));
     }
 
-    public string RecognizePage(int pageNumber, double cropFraction = 1, Func<string, int, bool>? acceptUpright = null)
+    public string RecognizePage(int pageNumber, double cropFraction = 1, Func<string, int, bool>? acceptOrientation = null)
     {
         renderer ??= PdfOcr.OpenPdfium().GetDocReader(path, new PageDimensions(2067, 2924));
         using var page = renderer.GetPageReader(pageNumber - 1);
@@ -126,25 +166,64 @@ public sealed class PdfOcrDocument(PdfOcr ocr, string path) : IDisposable
             grayscale[i] = (byte)((luminance * alpha + 255 * (255 - alpha)) / 255);
         }
 
-        var best = ocr.Recognize(grayscale, width, height);
-        if (acceptUpright is null || acceptUpright(best.Text, best.Confidence))
-            return best.Text;
+        if (acceptOrientation is null)
+            return ocr.Recognize(grayscale, width, height).Text;
 
-        var rotated = new byte[grayscale.Length];
-        for (int turn = 0; turn < 3; turn++)
+        byte[]? rotated = null;
+        var best = (Text: "", Confidence: -1, Correction: int.MaxValue);
+        foreach (int turns in GetCorrections(grayscale, width, height))
         {
-            for (int y = 0; y < height; y++)
-                for (int x = 0; x < width; x++)
-                    rotated[x * height + height - 1 - y] = grayscale[y * width + x];
+            var result = turns == 0
+                ? ocr.Recognize(grayscale, width, height)
+                : RecognizeRotated(grayscale, rotated ??= new byte[grayscale.Length], width, height, turns);
+            if (acceptOrientation(result.Text, result.Confidence))
+            {
+                lastAcceptedCorrection = turns;
+                return result.Text;
+            }
 
-            (grayscale, rotated) = (rotated, grayscale);
-            (width, height) = (height, width);
-            var attempt = ocr.Recognize(grayscale, width, height);
-            if (attempt.Confidence > best.Confidence)
-                best = attempt;
+            // Preserve the original orientation order when OCR confidence ties.
+            if (result.Confidence > best.Confidence || (result.Confidence == best.Confidence && turns < best.Correction))
+                best = (result.Text, result.Confidence, turns);
         }
 
         return best.Text;
+    }
+
+    private IEnumerable<int> GetCorrections(byte[] pixels, int width, int height)
+    {
+        int? previous = lastAcceptedCorrection;
+        if (previous is int turns)
+            yield return turns;
+
+        int first = ocr.DetectCorrection(pixels, width, height) ?? previous ?? 0;
+        for (int offset = 0; offset < 4; offset++)
+        {
+            int correction = (first + offset) % 4;
+            if (correction != previous)
+                yield return correction;
+        }
+    }
+
+    private (string Text, int Confidence) RecognizeRotated(byte[] source, byte[] rotated, int width, int height, int turns)
+    {
+        if (turns == 2)
+        {
+            for (int i = 0; i < source.Length; i++)
+                rotated[source.Length - 1 - i] = source[i];
+            return ocr.Recognize(rotated, width, height);
+        }
+
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                int destination = turns == 1 ? x * height + height - 1 - y : (width - 1 - x) * height + y;
+                rotated[destination] = source[y * width + x];
+            }
+        }
+
+        return ocr.Recognize(rotated, height, width);
     }
 
     public void Dispose() => renderer?.Dispose();
@@ -195,6 +274,10 @@ internal static class TesseractNative
 
     [DllImport(Library, EntryPoint = "TessBaseAPISetSourceResolution", CallingConvention = CallingConvention.Cdecl)]
     internal static extern void SetSourceResolution(TesseractHandle handle, int ppi);
+
+    [DllImport(Library, EntryPoint = "TessBaseAPIDetectOrientationScript", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int DetectOrientation(TesseractHandle handle, out int degrees, out float orientationConfidence,
+        out nint script, out float scriptConfidence);
 
     [DllImport(Library, EntryPoint = "TessBaseAPIGetUTF8Text", CallingConvention = CallingConvention.Cdecl)]
     internal static extern nint GetUtf8Text(TesseractHandle handle);

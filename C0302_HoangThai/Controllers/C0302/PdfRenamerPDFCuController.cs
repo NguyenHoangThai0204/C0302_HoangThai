@@ -127,7 +127,7 @@ namespace C0302_HoangThai.Controllers.C0302
         private (string Invoice, string Awb, string OriginalInvoice, string Name) ReadIdentifiers(string text, PdfOcrDocument scan, int page)
         {
             if (string.IsNullOrWhiteSpace(text))
-                text = NormalizeOcrText(scan.RecognizePage(page, acceptUpright: HasConfidentPodIdentifiers));
+                text = NormalizeOcrText(scan.RecognizePage(page, acceptOrientation: HasConfidentPodIdentifiers));
 
             string invoice = ExtractInvoiceNumber(text);
             string awb = ExtractAwbNumber(text);
@@ -145,7 +145,7 @@ namespace C0302_HoangThai.Controllers.C0302
 
         private bool HasConfidentPodIdentifiers(string text, int confidence)
         {
-            const int minimumConfidence = 90;
+            const int minimumConfidence = 70;
             if (confidence < minimumConfidence)
                 return false;
 
@@ -168,7 +168,7 @@ namespace C0302_HoangThai.Controllers.C0302
             // Pattern 1: "Original invoice #" ... so ngay sau (cung dong hoac xuong dong,
             // vi khi extract tu bang PDF, nhan va gia tri co the bi tach dong)
             var m = Regex.Match(text,
-                @"Original\s*invoice\s*#?\s*:?\s*[\r\n]*\s*([A-Z0-9\-/]{5,})",
+                @"Original\s*inv[oe]ice\s*#?\s*:?\s*[\r\n]*\s*([A-Z0-9\-/]{5,})",
                 RegexOptions.IgnoreCase);
             if (m.Success)
             {
@@ -196,15 +196,16 @@ namespace C0302_HoangThai.Controllers.C0302
                 if (num.Length >= 5) return SanitizeFileName(num);
             }
 
-            if (requireLabel) return "Unknown";
-
             // Pattern 2: Packing list #
-            m = Regex.Match(text, @"Packing\s*[Ll]ist\s*#?\s*:?\s*([A-Z0-9\-/]+)", RegexOptions.IgnoreCase);
+            m = Regex.Match(text, @"Packing\s*Lis[ts]\s*#?\s*:?\s*([A-Z0-9\-/]+)", RegexOptions.IgnoreCase);
             if (m.Success)
             {
                 string num = CleanupExtractedText(m.Groups[1].Value);
-                if (num.Length >= 5) return SanitizeFileName(num);
+                if (num.Length >= 5 && (!requireLabel || Regex.IsMatch(num, @"^[A-Z]{2,5}-\d{5,}")))
+                    return SanitizeFileName(num);
             }
+
+            if (requireLabel) return "Unknown";
 
             // Pattern 3: XXX-XXXXXXX (complex)
             m = Regex.Match(text, @"([A-Z]{2,5}-\d+(?:-\d+)*(?:/[A-Z]{2,5}-\d+(?:-\d+)*)*)", RegexOptions.IgnoreCase);
