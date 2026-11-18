@@ -109,7 +109,7 @@ public sealed class PdfOcrDocument(PdfOcr ocr, string path) : IDisposable
         return value.Length > 0 ? value : extract(RecognizePage(pageNumber, cropFraction));
     }
 
-    public string RecognizePage(int pageNumber, double cropFraction = 1, Func<string, bool>? hasIdentifier = null)
+    public string RecognizePage(int pageNumber, double cropFraction = 1, bool tryAllRotations = false)
     {
         renderer ??= PdfOcr.OpenPdfium().GetDocReader(path, new PageDimensions(2067, 2924));
         using var page = renderer.GetPageReader(pageNumber - 1);
@@ -127,7 +127,7 @@ public sealed class PdfOcrDocument(PdfOcr ocr, string path) : IDisposable
         }
 
         var best = ocr.Recognize(grayscale, width, height);
-        if (hasIdentifier is null || hasIdentifier(best.Text) || best.Confidence >= 80)
+        if (!tryAllRotations)
             return best.Text;
 
         var rotated = new byte[grayscale.Length];
@@ -140,8 +140,6 @@ public sealed class PdfOcrDocument(PdfOcr ocr, string path) : IDisposable
             (grayscale, rotated) = (rotated, grayscale);
             (width, height) = (height, width);
             var attempt = ocr.Recognize(grayscale, width, height);
-            if (hasIdentifier(attempt.Text))
-                return attempt.Text;
             if (attempt.Confidence > best.Confidence)
                 best = attempt;
         }

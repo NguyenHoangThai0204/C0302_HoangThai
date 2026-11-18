@@ -126,23 +126,13 @@ namespace C0302_HoangThai.Controllers.C0302
 
         private (string Invoice, string Awb, string OriginalInvoice, string Name) ReadIdentifiers(string text, PdfOcrDocument scan, int page)
         {
+            // For scans, choose the most confident orientation before extracting any codes.
+            if (string.IsNullOrWhiteSpace(text))
+                text = NormalizeOcrText(scan.RecognizePage(page, tryAllRotations: true));
+
             string invoice = ExtractInvoiceNumber(text);
             string awb = ExtractAwbNumber(text);
             string original = ExtractOriginalInvoiceNumber(text);
-            if (invoice == "Unknown" || awb == "Unknown")
-            {
-                string recognized = NormalizeOcrText(scan.RecognizePage(page, hasIdentifier: candidate =>
-                {
-                    string normalized = NormalizeOcrText(candidate);
-                    return ExtractInvoiceNumber(normalized) != "Unknown" || ExtractAwbNumber(normalized) != "Unknown";
-                }));
-                if (invoice == "Unknown")
-                    invoice = ExtractInvoiceNumber(recognized);
-                if (awb == "Unknown")
-                    awb = ExtractAwbNumber(recognized);
-                if (original == "Unknown")
-                    original = ExtractOriginalInvoiceNumber(recognized);
-            }
 
             string name = (invoice != "Unknown", awb != "Unknown") switch
             {
