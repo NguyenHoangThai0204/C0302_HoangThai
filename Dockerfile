@@ -8,7 +8,7 @@ RUN dotnet publish C0302_HoangThai/C0302_HoangThai.csproj --configuration Releas
 
 FROM mcr.microsoft.com/dotnet/aspnet:8.0-bookworm-slim
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libtesseract5 tesseract-ocr-eng tesseract-ocr-vie fontconfig fonts-dejavu-core \
+    && apt-get install -y --no-install-recommends libtesseract5 tesseract-ocr-eng tesseract-ocr-vie tesseract-ocr-osd fontconfig fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=build /app .

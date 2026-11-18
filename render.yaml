@@ -3,7 +3,7 @@ services:
     name: c0302-hoang-thai
     runtime: docker
     plan: free
-    branch: render-ocr
+    branch: main
     dockerfilePath: ./Dockerfile
     dockerContext: .
     healthCheckPath: /healthz
